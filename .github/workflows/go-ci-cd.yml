@@ -115,11 +115,9 @@ jobs:
           REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
 
           # Construct the full tag string with real newline separation
-          TAGS_STRING="ghcr.io/$REPO_LOWER:latest
-ghcr.io/$REPO_LOWER:${{ steps.versioning.outputs.NEW_VERSION }}"
-
-          # Output the constructed string
-          echo "DOCKER_TAGS=$TAGS_STRING" >> "$GITHUB_OUTPUT"
+          # Output each tag as a separate line for DOCKER_TAGS
+          echo "DOCKER_TAGS=ghcr.io/$REPO_LOWER:latest" >> "$GITHUB_OUTPUT"
+          echo "ghcr.io/$REPO_LOWER:${{ steps.versioning.outputs.NEW_VERSION }}" >> "$GITHUB_OUTPUT"
 
       - name: Build and Push Docker image
         uses: docker/build-push-action@v5
