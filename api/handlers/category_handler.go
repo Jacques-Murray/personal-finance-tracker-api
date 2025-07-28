@@ -6,6 +6,7 @@ import (
 	"personal-finance-tracker-api/internal/repository"
 
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 )
 
 // CategoryHandler holds the repository for database access
@@ -32,14 +33,27 @@ func NewCategoryHandler(repo repository.Repository) *CategoryHandler {
 func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 	var category models.Category
 	if err := c.ShouldBindJSON(&category); err != nil {
+		logrus.WithFields(logrus.Fields{
+			"error":   err.Error(),
+			"payload": c.Request.Body,
+		}).Warn("CreateCategory: Invalid JSON format or data type mismatch")
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input: " + err.Error()})
 		return
 	}
 
 	if err := h.Repo.CreateCategory(c.Request.Context(), &category); err != nil {
+		logrus.WithFields(logrus.Fields{
+			"error":    err.Error(),
+			"category": category,
+		}).Error("CreateCategory: Failed to create category in repository")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create category"})
 		return
 	}
+
+	logrus.WithFields(logrus.Fields{
+		"categoryID":   category.ID,
+		"categoryName": category.Name,
+	}).Info("CreateCategory: Category successfully created")
 
 	c.JSON(http.StatusCreated, category)
 }
@@ -55,9 +69,16 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 func (h *CategoryHandler) GetCategories(c *gin.Context) {
 	categories, err := h.Repo.GetCategories(c.Request.Context())
 	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Error("GetCategories: Failed to retrieve categories from repository")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve categories"})
 		return
 	}
+
+	logrus.WithFields(logrus.Fields{
+		"count": len(categories),
+	}).Info("GetCategories: Categories retrieved successfully")
 
 	c.JSON(http.StatusOK, categories)
 }

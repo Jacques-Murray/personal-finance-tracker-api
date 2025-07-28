@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+	"github.com/sirupsen/logrus"
 )
 
 // Declare a global validator instance
@@ -43,6 +44,10 @@ func NewTransactionHandler(repo repository.Repository) *TransactionHandler {
 func (h *TransactionHandler) CreateTransaction(c *gin.Context) {
 	var transaction models.Transaction
 	if err := c.ShouldBindJSON(&transaction); err != nil {
+		logrus.WithFields(logrus.Fields{
+			"error":   err.Error(),
+			"payload": c.Request.Body,
+		}).Warn("CreateTransaction: Invalid JSON format or data type mismatch")
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse{
 			Error:   "Bad Request",
 			Details: "Invalid JSON format or data type mismatch.",
@@ -61,12 +66,20 @@ func (h *TransactionHandler) CreateTransaction(c *gin.Context) {
 					Message: fmt.Sprintf("Validation failed on '%s' for tag '%s'", fieldErr.Field(), fieldErr.Tag()),
 				})
 			}
+			logrus.WithFields(logrus.Fields{
+				"validationErrors": fields,
+				"transaction":      transaction,
+			}).Warn("CreateTransaction: Validation error")
 			c.JSON(http.StatusBadRequest, responses.ValidationErrorResponse{
 				Error:  "Validation Error",
 				Fields: fields,
 			})
 			return
 		}
+		logrus.WithFields(logrus.Fields{
+			"error":       err.Error(),
+			"transaction": transaction,
+		}).Warn("CreateTransaction: Unknown validation error")
 
 		// Fallback for other types of validation errors
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse{
@@ -77,12 +90,22 @@ func (h *TransactionHandler) CreateTransaction(c *gin.Context) {
 	}
 
 	if err := h.Repo.CreateTransaction(c.Request.Context(), &transaction); err != nil {
+		logrus.WithFields(logrus.Fields{
+			"error":       err.Error(),
+			"transaction": transaction,
+		}).Error("CreateTransaction: Failed to create transaction in repository")
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse{
 			Error:   "Internal Server Error",
 			Details: "Failed to create transaction.",
 		})
 		return
 	}
+
+	logrus.WithFields(logrus.Fields{
+		"transactionID": transaction.ID,
+		"amount":        transaction.Amount,
+		"type":          transaction.Type,
+	}).Info("CreateTransaction: Transaction created successfully")
 
 	c.JSON(http.StatusCreated, transaction)
 }
@@ -98,12 +121,19 @@ func (h *TransactionHandler) CreateTransaction(c *gin.Context) {
 func (h *TransactionHandler) GetTransactions(c *gin.Context) {
 	transactions, err := h.Repo.GetTransactions(c.Request.Context())
 	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Error("GetTransactions: Failed to retrieve transactions from repository")
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse{
 			Error:   "Internal Server Error",
 			Details: "Failed to retrieve transactions.",
 		})
 		return
 	}
+
+	logrus.WithFields(logrus.Fields{
+		"transactionCount": len(transactions),
+	}).Info("GetTransactions: Retrieved transactions successfully")
 
 	c.JSON(http.StatusOK, transactions)
 }
@@ -119,6 +149,9 @@ func (h *TransactionHandler) GetTransactions(c *gin.Context) {
 func (h *TransactionHandler) ExportTransactionsCSV(c *gin.Context) {
 	transactions, err := h.Repo.GetTransactions(c.Request.Context())
 	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Error("ExportTransactionsCSV: Failed to retrieve transactions for CSV export")
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse{
 			Error:   "Internal Server Error",
 			Details: "Failed to retrieve transactions.",
@@ -137,6 +170,9 @@ func (h *TransactionHandler) ExportTransactionsCSV(c *gin.Context) {
 	// Write CSV header
 	header := []string{"ID", "Description", "Amount", "Type", "Date", "Category"}
 	if err := writer.Write(header); err != nil {
+		logrus.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Error("ExportTransactionsCSV: Failed to write CSV header")
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse{
 			Error:   "Internal Server Error",
 			Details: "Failed to write CSV header.",
@@ -155,11 +191,11 @@ func (h *TransactionHandler) ExportTransactionsCSV(c *gin.Context) {
 			t.Category.Name,
 		}
 		if err := writer.Write(record); err != nil {
-			c.JSON(http.StatusInternalServerError, responses.ErrorResponse{
-				Error:   "Internal Server Error",
-				Details: "Failed to write CSV record.",
-			})
-			return
+			logrus.WithFields(logrus.Fields{
+				"error":         err.Error(),
+				"transactionID": t.ID,
+			}).Error("ExportTransactionsCSV: Failed to write CSV record")
 		}
 	}
+	logrus.Info("ExportTransactionsCSV: Transactions exported successfully")
 }
