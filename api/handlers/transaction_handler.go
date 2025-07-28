@@ -4,11 +4,20 @@ import (
 	"encoding/csv"
 	"fmt"
 	"net/http"
+	"personal-finance-tracker-api/api/responses"
 	"personal-finance-tracker-api/internal/models"
 	"personal-finance-tracker-api/internal/repository"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 )
+
+// Declare a global validator instance
+var validate *validator.Validate
+
+func init() {
+	validate = validator.New()
+}
 
 // TransactionHandler holds the repository for database access
 type TransactionHandler struct {
@@ -34,17 +43,44 @@ func NewTransactionHandler(repo repository.Repository) *TransactionHandler {
 func (h *TransactionHandler) CreateTransaction(c *gin.Context) {
 	var transaction models.Transaction
 	if err := c.ShouldBindJSON(&transaction); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input: " + err.Error()})
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse{
+			Error:   "Bad Request",
+			Details: "Invalid JSON format or data type mismatch.",
+		})
 		return
 	}
 
-	if transaction.Type != models.Income && transaction.Type != models.Expense {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid transaction type"})
+	// Perform validation using the 'validate' instance
+	if err := validate.Struct(transaction); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			var fields []responses.ValidationFieldError
+			for _, fieldErr := range validationErrors {
+				fields = append(fields, responses.ValidationFieldError{
+					Field:   fieldErr.Field(),
+					Tag:     fieldErr.Tag(),
+					Message: fmt.Sprintf("Validation failed on '%s' for tag '%s'", fieldErr.Field(), fieldErr.Tag()),
+				})
+			}
+			c.JSON(http.StatusBadRequest, responses.ValidationErrorResponse{
+				Error:  "Validation Error",
+				Fields: fields,
+			})
+			return
+		}
+
+		// Fallback for other types of validation errors
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse{
+			Error:   "Bad Request",
+			Details: "Validation failed: " + err.Error(),
+		})
 		return
 	}
 
 	if err := h.Repo.CreateTransaction(&transaction); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create transaction"})
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse{
+			Error:   "Internal Server Error",
+			Details: "Failed to create transaction.",
+		})
 		return
 	}
 
@@ -62,7 +98,10 @@ func (h *TransactionHandler) CreateTransaction(c *gin.Context) {
 func (h *TransactionHandler) GetTransactions(c *gin.Context) {
 	transactions, err := h.Repo.GetTransactions()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve transactions"})
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse{
+			Error:   "Internal Server Error",
+			Details: "Failed to retrieve transactions.",
+		})
 		return
 	}
 
@@ -80,7 +119,10 @@ func (h *TransactionHandler) GetTransactions(c *gin.Context) {
 func (h *TransactionHandler) ExportTransactionsCSV(c *gin.Context) {
 	transactions, err := h.Repo.GetTransactions()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve transactions"})
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse{
+			Error:   "Internal Server Error",
+			Details: "Failed to retrieve transactions.",
+		})
 		return
 	}
 
@@ -95,7 +137,10 @@ func (h *TransactionHandler) ExportTransactionsCSV(c *gin.Context) {
 	// Write CSV header
 	header := []string{"ID", "Description", "Amount", "Type", "Date", "Category"}
 	if err := writer.Write(header); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to write CSV header"})
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse{
+			Error:   "Internal Server Error",
+			Details: "Failed to write CSV header.",
+		})
 		return
 	}
 
@@ -110,7 +155,10 @@ func (h *TransactionHandler) ExportTransactionsCSV(c *gin.Context) {
 			t.Category.Name,
 		}
 		if err := writer.Write(record); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to write CSV record"})
+			c.JSON(http.StatusInternalServerError, responses.ErrorResponse{
+				Error:   "Internal Server Error",
+				Details: "Failed to write CSV record.",
+			})
 			return
 		}
 	}
