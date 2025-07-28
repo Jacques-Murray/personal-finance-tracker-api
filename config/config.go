@@ -2,10 +2,10 @@ package config
 
 import (
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/joho/godotenv"
+	"github.com/sirupsen/logrus"
 )
 
 // Config holds all configuration for the application
@@ -19,7 +19,9 @@ func New() *Config {
 	// godotenv.Load() will ignore the error if the .env file doesn't exist
 	// This is useful for production environments where env vars are set directly
 	if err := godotenv.Load(); err != nil {
-		log.Printf("Error loading .env file: %v", err)
+		logrus.WithFields(logrus.Fields{
+			"error": err,
+		}).Warn("Error loading .env file. Environment variables will be used directly.")
 	}
 
 	dbUser := getEnv("DB_USER", "postgres")
@@ -44,6 +46,9 @@ func getEnv(key, fallback string) string {
 	if value, ok := os.LookupEnv(key); ok {
 		return value
 	}
-	log.Printf("Defaulting to %s for %s", fallback, key)
+	logrus.WithFields(logrus.Fields{
+		"key":     key,
+		"default": fallback,
+	}).Info("Defaulting to fallback value for environment variable")
 	return fallback
 }

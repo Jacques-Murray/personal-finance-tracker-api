@@ -3,8 +3,10 @@ package api
 import (
 	"personal-finance-tracker-api/api/handlers"
 	"personal-finance-tracker-api/internal/repository"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
@@ -15,6 +17,25 @@ import (
 // SetupRouter configures the API routes and returns a Gin engine
 func SetupRouter(repo repository.Repository) *gin.Engine {
 	r := gin.Default()
+
+	// Custom Logrus Middleware
+	r.Use(func(c *gin.Context) {
+		startTime := time.Now()
+
+		c.Next()
+
+		endTime := time.Now()
+		latency := endTime.Sub(startTime)
+
+		logrus.WithFields(logrus.Fields{
+			"method":     c.Request.Method,
+			"path":       c.Request.URL.Path,
+			"status":     c.Writer.Status(),
+			"latency":    latency,
+			"ip":         c.ClientIP(),
+			"user_agent": c.Request.UserAgent(),
+		}).Info("Request completed")
+	})
 
 	// Create handlers
 	transactionHandler := handlers.NewTransactionHandler(repo)

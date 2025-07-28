@@ -1,10 +1,9 @@
 package repository
 
 import (
-	"log"
-
 	"personal-finance-tracker-api/internal/models"
 
+	"github.com/sirupsen/logrus"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -13,15 +12,20 @@ import (
 func InitDB(url string) *gorm.DB {
 	db, err := gorm.Open(postgres.Open(url), &gorm.Config{})
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		logrus.WithFields(logrus.Fields{
+			"error": err,
+			"url":   url,
+		}).Fatal("Failed to connect to database")
 	}
 
 	// Auto-migrate the schema
 	err = db.AutoMigrate(&models.Category{}, &models.Transaction{})
 	if err != nil {
-		log.Fatalf("Failed to migrate database: %v", err)
+		logrus.WithFields(logrus.Fields{
+			"error": err,
+		}).Fatal("Failed to migrate database schema")
 	}
 
-	log.Println("Database connection successful and schema migrated")
+	logrus.Info("Database connection successful and schema migrated")
 	return db
 }

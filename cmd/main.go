@@ -2,11 +2,13 @@ package main
 
 import (
 	"fmt"
-	"log"
+	"os"
 
 	"personal-finance-tracker-api/api"
 	"personal-finance-tracker-api/config"
 	"personal-finance-tracker-api/internal/repository"
+
+	"github.com/sirupsen/logrus"
 )
 
 // @title Personal Finance Tracker API
@@ -24,6 +26,11 @@ import (
 // @host localhost:8080
 // @BasePath /api/v1
 func main() {
+	// Initialize Logrus
+	logrus.SetFormatter(&logrus.JSONFormatter{})
+	logrus.SetOutput(os.Stdout)
+	logrus.SetLevel(logrus.InfoLevel)
+
 	// Load application configuration
 	cfg := config.New()
 
@@ -38,8 +45,14 @@ func main() {
 
 	// Start the server
 	serverAddr := fmt.Sprintf(":%s", cfg.APIPort)
-	log.Printf("Server starting on %s", serverAddr)
+	logrus.WithFields(logrus.Fields{
+		"address": serverAddr,
+		"port":    cfg.APIPort,
+	}).Info("Server starting")
+
 	if err := router.Run(serverAddr); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
+		logrus.WithFields(logrus.Fields{
+			"error": err,
+		}).Fatal("Failed to start server")
 	}
 }
