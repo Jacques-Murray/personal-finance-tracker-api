@@ -231,6 +231,12 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
+                "parent": {
+                    "$ref": "#/definitions/models.Category"
+                },
+                "parentId": {
+                    "type": "integer"
+                },
                 "updatedAt": {
                     "type": "string"
                 }

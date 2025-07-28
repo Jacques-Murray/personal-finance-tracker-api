@@ -41,9 +41,9 @@ func (r *GormRepository) CreateCategory(c *models.Category) error {
 	return r.db.Create(c).Error
 }
 
-// Getcategories retrieves all categories
+// GetCategories retrieves all categories, preloading their parent category
 func (r *GormRepository) GetCategories() ([]models.Category, error) {
 	var categories []models.Category
-	err := r.db.Find(&categories).Error
+	err := r.db.Preload("Parent").Find(&categories).Error
 	return categories, err
 }

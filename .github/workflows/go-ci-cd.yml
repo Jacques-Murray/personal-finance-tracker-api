@@ -1,0 +1,94 @@
+name: Go CI/CD Workflow
+
+on:
+  push:
+    branches:
+      - development
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  ci:
+    name: Continuous Integration Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Install golangci-lint
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.3.0
+
+      - name: Lint Go project
+        run: |
+          $(go env GOPATH)/bin/golangci-lint run ./...
+
+      - name: Build Go project
+        run: go build -v -o personal-finance-tracker-api ./cmd/...
+
+  release:
+    name: Release to GitHub and Docker
+    runs-on: ubuntu-latest
+    needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+      packages: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Get and Bump version
+        id: go_version
+        uses: dsaltares/go-version-action@v1.0.0
+        with:
+          version-file: 'VERSION'
+          bump: 'patch'
+
+      - name: Create Git Tag
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git tag ${{ steps.go_version.outputs.version }}
+          git push origin ${{ steps.go_version.outputs.version }}
+
+      - name: Set up Docker Buildx
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.release
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:latest
+            ghcr.io/${{ github.repository }}:${{ steps.go_version.outputs.version }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.go_version.outputs.version }}
+          name: Release ${{ steps.go_version.outputs.version }}
+          body: "Automated release for version ${{ steps.go_version.outputs.version }}"
+          draft: false
+          prerelease: false
