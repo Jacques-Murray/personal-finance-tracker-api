@@ -105,8 +105,8 @@ jobs:
           file: ./Dockerfile.release
           push: true
           tags: |
-            ghcr.io/${{ github.repository | lower }}:latest
-            ghcr.io/${{ github.repository | lower }}:${{ steps.go_version.outputs.NEW_VERSION }}
+            'ghcr.io/${{ github.repository | lower }}:latest'
+            'ghcr.io/${{ github.repository | lower }}:${{ steps.go_version.outputs.NEW_VERSION }}'
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
