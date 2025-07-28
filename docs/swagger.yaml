@@ -48,8 +48,8 @@ info:
     url: https://jacquesmurray.site/support
   description: This is a RESTful API for a personal finance tracking application.
   license:
-    name: Apache 2.0
-    url: https://www.apache.org/licenses/LICENSE-2.0.html
+    name: MIT
+    url: https://opensource.org/licenses/MIT
   termsOfService: https://jacquesmurray.site/terms/
   title: Personal Finance Tracker API
   version: "1.0"

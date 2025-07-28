@@ -4,6 +4,11 @@ FROM mcr.microsoft.com/devcontainers/go:1-1.24-bookworm
 RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
     && apt-get -y install --no-install-recommends postgresql-client
 
+# Install Go tools including swag
+USER vscode
+RUN go install github.com/swaggo/swag/cmd/swag@latest
+USER root
+
 # [Optional] Uncomment the next lines to use go get to install anything else you need
 # USER vscode
 # RUN go get -x <your-dependency-or-tool>
