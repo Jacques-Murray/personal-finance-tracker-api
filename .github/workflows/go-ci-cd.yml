@@ -116,8 +116,10 @@ jobs:
 
           # Construct the full tag string with real newline separation
           # Output each tag as a separate line for DOCKER_TAGS
-          echo "DOCKER_TAGS=ghcr.io/$REPO_LOWER:latest" >> "$GITHUB_OUTPUT"
+          echo "DOCKER_TAGS<<EOF" >> "$GITHUB_OUTPUT"
+          echo "ghcr.io/$REPO_LOWER:latest" >> "$GITHUB_OUTPUT"
           echo "ghcr.io/$REPO_LOWER:${{ steps.versioning.outputs.NEW_VERSION }}" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
 
       - name: Build and Push Docker image
         uses: docker/build-push-action@v5
@@ -130,8 +132,8 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.go_version.outputs.NEW_VERSION }}
-          name: Release ${{ steps.go_version.outputs.NEW_VERSION }}
-          body: "Automated release for version ${{ steps.go_version.outputs.NEW_VERSION }}"
+          tag_name: ${{ steps.versioning.outputs.NEW_VERSION }}
+          name: Release ${{ steps.versioning.outputs.NEW_VERSION }}
+          body: "Automated release for version ${{ steps.versioning.outputs.NEW_VERSION }}"
           draft: false
           prerelease: false
