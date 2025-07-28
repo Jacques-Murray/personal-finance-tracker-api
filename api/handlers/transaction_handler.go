@@ -76,7 +76,7 @@ func (h *TransactionHandler) CreateTransaction(c *gin.Context) {
 		return
 	}
 
-	if err := h.Repo.CreateTransaction(&transaction); err != nil {
+	if err := h.Repo.CreateTransaction(c.Request.Context(), &transaction); err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse{
 			Error:   "Internal Server Error",
 			Details: "Failed to create transaction.",
@@ -96,7 +96,7 @@ func (h *TransactionHandler) CreateTransaction(c *gin.Context) {
 // @Failure 500 {object} map[string]string
 // @Router /transactions [get]
 func (h *TransactionHandler) GetTransactions(c *gin.Context) {
-	transactions, err := h.Repo.GetTransactions()
+	transactions, err := h.Repo.GetTransactions(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse{
 			Error:   "Internal Server Error",
@@ -117,7 +117,7 @@ func (h *TransactionHandler) GetTransactions(c *gin.Context) {
 // @Failure 500 {object} map[string]string
 // @Router /transactions/export/csv [get]
 func (h *TransactionHandler) ExportTransactionsCSV(c *gin.Context) {
-	transactions, err := h.Repo.GetTransactions()
+	transactions, err := h.Repo.GetTransactions(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse{
 			Error:   "Internal Server Error",

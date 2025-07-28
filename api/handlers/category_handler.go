@@ -36,7 +36,7 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 		return
 	}
 
-	if err := h.Repo.CreateCategory(&category); err != nil {
+	if err := h.Repo.CreateCategory(c.Request.Context(), &category); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create category"})
 		return
 	}
@@ -53,7 +53,7 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 // @Failure 500 {object} map[string]string
 // @Router /categories [get]
 func (h *CategoryHandler) GetCategories(c *gin.Context) {
-	categories, err := h.Repo.GetCategories()
+	categories, err := h.Repo.GetCategories(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve categories"})
 		return
