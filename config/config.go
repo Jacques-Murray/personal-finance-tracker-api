@@ -18,7 +18,9 @@ type Config struct {
 func New() *Config {
 	// godotenv.Load() will ignore the error if the .env file doesn't exist
 	// This is useful for production environments where env vars are set directly
-	godotenv.Load()
+	if err := godotenv.Load(); err != nil {
+		log.Printf("Error loading .env file: %v", err)
+	}
 
 	dbUser := getEnv("DB_USER", "postgres")
 	dbPassword := getEnv("DB_PASSWORD", "password")
