@@ -114,8 +114,9 @@ jobs:
           # Convert github.repository to lowercase
           REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
 
-          # Construct the full tag string with newline characters
-          TAGS_STRING=ghcr.io/$REPO_LOWER:latest\nghcr.io/$REPO_LOWER:${{ steps.versioning.outputs.NEW_VERSION }}
+          # Construct the full tag string with real newline separation
+          TAGS_STRING="ghcr.io/$REPO_LOWER:latest
+ghcr.io/$REPO_LOWER:${{ steps.versioning.outputs.NEW_VERSION }}"
 
           # Output the constructed string
           echo "DOCKER_TAGS=$TAGS_STRING" >> "$GITHUB_OUTPUT"
