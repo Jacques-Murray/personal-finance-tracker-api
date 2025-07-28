@@ -1,0 +1,13 @@
+{
+    "sqltools.connections": [
+        {
+            "previewLimit": 50,
+            "server": "localhost",
+            "port": 5432,
+            "driver": "PostgreSQL",
+            "name": "finance_tracker",
+            "database": "finance_tracker",
+            "username": "postgres"
+        }
+    ]
+}

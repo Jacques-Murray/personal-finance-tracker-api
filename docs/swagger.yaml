@@ -1,0 +1,184 @@
+basePath: /api/v1
+definitions:
+  models.Category:
+    properties:
+      createdAt:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      updatedAt:
+        type: string
+    type: object
+  models.Transaction:
+    properties:
+      amount:
+        type: number
+      category:
+        $ref: '#/definitions/models.Category'
+      categoryId:
+        type: integer
+      createdAt:
+        type: string
+      date:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      type:
+        $ref: '#/definitions/models.TransactionType'
+      updatedAt:
+        type: string
+    type: object
+  models.TransactionType:
+    enum:
+    - income
+    - expense
+    type: string
+    x-enum-varnames:
+    - Income
+    - Expense
+host: localhost:8080
+info:
+  contact:
+    email: support@jacquesmurray.site
+    name: Jacques Murray
+    url: https://jacquesmurray.site/support
+  description: This is a RESTful API for a personal finance tracking application.
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: https://jacquesmurray.site/terms/
+  title: Personal Finance Tracker API
+  version: "1.0"
+paths:
+  /categories:
+    get:
+      description: Retrieve a list of all transaction categories
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Category'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get all categories
+      tags:
+      - categories
+    post:
+      consumes:
+      - application/json
+      description: Add a new category to the system
+      parameters:
+      - description: Category object
+        in: body
+        name: category
+        required: true
+        schema:
+          $ref: '#/definitions/models.Category'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Category'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Create a new category
+      tags:
+      - categories
+  /transactions:
+    get:
+      description: Retrieve a list of all transactions, ordered by date
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Transaction'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get all transactions
+      tags:
+      - transactions
+    post:
+      consumes:
+      - application/json
+      description: Add a new income or expense transaction
+      parameters:
+      - description: Transaction object
+        in: body
+        name: transaction
+        required: true
+        schema:
+          $ref: '#/definitions/models.Transaction'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Transaction'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Create a new transaction
+      tags:
+      - transactions
+  /transactions/export/csv:
+    get:
+      description: Download a CSV file containing all transaction data
+      produces:
+      - text/csv
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Export transactions to CSV
+      tags:
+      - transactions
+swagger: "2.0"
