@@ -31,7 +31,7 @@ type appError struct {
 // New create a new custom error with a type and an optional wrapped error
 func New(t ErrorType, msg string, err error) CustomError {
 	if err == nil {
-		return &appError{err: fmt.Errorf(msg), errorType: t}
+		return &appError{err: fmt.Errorf("%s", msg), errorType: t}
 	}
 	return &appError{err: fmt.Errorf("%s: %w", msg, err), errorType: t}
 }
