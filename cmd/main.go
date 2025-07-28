@@ -18,8 +18,8 @@ import (
 // @contact.url https://jacquesmurray.site/support
 // @contact.email support@jacquesmurray.site
 
-// @license.name Apache 2.0
-// @license.url https://www.apache.org/licenses/LICENSE-2.0.html
+// @license.name MIT
+// @license.url https://opensource.org/licenses/MIT
 
 // @host localhost:8080
 // @BasePath /api/v1
