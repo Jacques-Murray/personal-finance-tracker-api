@@ -45,12 +45,9 @@ const docTemplate = `{
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/responses.ErrorResponse"
                         }
                     }
                 }
@@ -86,21 +83,21 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Invalid input",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict error (e.g., category name already exists)",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/responses.ErrorResponse"
                         }
                     }
                 }
@@ -127,12 +124,9 @@ const docTemplate = `{
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/responses.ErrorResponse"
                         }
                     }
                 }
@@ -168,21 +162,21 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Invalid input or validation error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/responses.ValidationErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict error (e.g., transaction already exists)",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/responses.ErrorResponse"
                         }
                     }
                 }
@@ -206,12 +200,113 @@ const docTemplate = `{
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/login": {
+            "post": {
+                "description": "Authenticate a user and return an authentication token",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Log in a user",
+                "parameters": [
+                    {
+                        "description": "User login details",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.LoginUserRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Authentication successful with JWT token",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.LoginResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ValidationErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized (invalid credentials)",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/register": {
+            "post": {
+                "description": "Register a new user with a username and password",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Register a new user",
+                "parameters": [
+                    {
+                        "description": "User registration details",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.RegisterUserRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "User registered successfully",
+                        "schema": {
+                            "$ref": "#/definitions/models.User"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid input or validation error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ValidationErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict (username already exists)",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
                         }
                     }
                 }
@@ -219,6 +314,48 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "handlers.LoginResponse": {
+            "type": "object",
+            "properties": {
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.LoginUserRequest": {
+            "type": "object",
+            "required": [
+                "password",
+                "username"
+            ],
+            "properties": {
+                "password": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.RegisterUserRequest": {
+            "type": "object",
+            "required": [
+                "password",
+                "username"
+            ],
+            "properties": {
+                "password": {
+                    "description": "Basic password validation",
+                    "type": "string",
+                    "minLength": 6
+                },
+                "username": {
+                    "type": "string",
+                    "maxLength": 50,
+                    "minLength": 3
+                }
+            }
+        },
         "models.Category": {
             "type": "object",
             "properties": {
@@ -244,6 +381,12 @@ const docTemplate = `{
         },
         "models.Transaction": {
             "type": "object",
+            "required": [
+                "amount",
+                "categoryId",
+                "date",
+                "type"
+            ],
             "properties": {
                 "amount": {
                     "type": "number"
@@ -267,7 +410,15 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "type": {
-                    "$ref": "#/definitions/models.TransactionType"
+                    "enum": [
+                        "income",
+                        "expense"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.TransactionType"
+                        }
+                    ]
                 },
                 "updatedAt": {
                     "type": "string"
@@ -284,6 +435,67 @@ const docTemplate = `{
                 "Income",
                 "Expense"
             ]
+        },
+        "models.User": {
+            "type": "object",
+            "required": [
+                "username"
+            ],
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string",
+                    "maxLength": 50,
+                    "minLength": 3
+                }
+            }
+        },
+        "responses.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "details": {
+                    "type": "string"
+                },
+                "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "responses.ValidationErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "fields": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.ValidationFieldError"
+                    }
+                }
+            }
+        },
+        "responses.ValidationFieldError": {
+            "type": "object",
+            "properties": {
+                "field": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "tag": {
+                    "type": "string"
+                }
+            }
         }
     }
 }`
