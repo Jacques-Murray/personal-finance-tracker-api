@@ -19,6 +19,8 @@ type Transaction struct {
 	Date        time.Time       `gorm:"not null" json:"date" validate:"required"`
 	CategoryID  uint            `json:"categoryId" validate:"required"`
 	Category    Category        `gorm:"foreignKey:CategoryID" json:"category"`
+	UserID      uint            `json:"userId"`
+	User        User            `gorm:"foreignKey:UserID" json:"user"`
 	CreatedAt   time.Time       `json:"createdAt"`
 	UpdatedAt   time.Time       `json:"updatedAt"`
 }
