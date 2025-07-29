@@ -94,12 +94,40 @@ jobs:
           # Set the new versions as a step output for other steps to use
           echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_OUTPUT
 
-      - name: Set up Docker Buildx
-        uses: docker/login-action@v3
+      - name: Get Previous Tag
+        id: previous_tag
+        run: |
+          # Get the previous tag, if it exists
+          PREVIOUS_VERSION=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo '')
+          echo "PREVIOUS_VERSION=$PREVIOUS_VERSION" >> $GITHUB_ENV
+
+      - name: Generate Changelog
+        id: changelog
+        uses: janheinrichmerker/action-github-changelog-generator@v2.3
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          release_branch: main
+          output: CHANGELOG.md
+          # Only include since_tag if a previous tag exists
+          since_tag: ${{ env.PREVIOUS_VERSION }}
+          due_tag: ${{ steps.versioning.outputs.NEW_VERSION }}
+          exclude_labels: question,duplicate,invalid,wontfix
+          add_sections: '{"maintenance":{"prefix":"**Maintenance**","labels":["maintenance"]}}'
+          unreleased_label: Unreleased
+          template: |
+            ## {{version}} - {{date}}
+            {{changes}}
+
+      - name: Commit Changelog
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          git commit -m "docs: update CHANGELOG.md for ${{ steps.versioning.outputs.NEW_VERSION }} [skip ci]" || echo "No changes to commit"
+          git push origin main
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -134,6 +162,7 @@ jobs:
         with:
           tag_name: ${{ steps.versioning.outputs.NEW_VERSION }}
           name: Release ${{ steps.versioning.outputs.NEW_VERSION }}
-          body: "Automated release for version ${{ steps.versioning.outputs.NEW_VERSION }}"
+          body: |
+            ${{ steps.changelog.outputs.changelog }}
           draft: false
           prerelease: false
