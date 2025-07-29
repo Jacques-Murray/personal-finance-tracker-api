@@ -6,13 +6,13 @@ import (
 	"personal-finance-tracker-api/internal/models"
 	"personal-finance-tracker-api/internal/repository"
 
-	"golang.org/x/crypto/bcrypt" // Import bcrypt for password hashing
+	"golang.org/x/crypto/bcrypt"
 )
 
 // UserService defines the interface for user-related business logic
 type UserService interface {
 	RegisterUser(ctx context.Context, username, password string) (*models.User, error)
-	// AuthenticateUser(ctx context.Context, username, password string) (*models.User, error) // Will be implemented later
+	AuthenticateUser(ctx context.Context, username, password string) (*models.User, error)
 }
 
 // userService implements the UserService interface
@@ -39,22 +39,20 @@ func (s *userService) RegisterUser(ctx context.Context, username, password strin
 	}
 
 	if err := s.repo.CreateUser(ctx, user); err != nil {
-		return nil, err // Error will be wrapped by repository already
+		return nil, err
 	}
 
 	return user, nil
 }
 
-// You can add more user-related methods here, such as AuthenticateUser, GetUserByID, etc.
-// AuthenticateUser will compare a provided password with the stored hash.
-/*
+// AuthenticateUser authenticates a user by username and password
 func (s *userService) AuthenticateUser(ctx context.Context, username, password string) (*models.User, error) {
 	user, err := s.repo.GetUserByUsername(ctx, username)
 	if err != nil {
 		if appErrors.IsType(err, appErrors.TypeNotFound) {
 			return nil, appErrors.NewUnauthorizedError("Invalid credentials", nil)
 		}
-		return nil, err // Propagate other errors
+		return nil, appErrors.NewInternalError("Failed to authenticate user due to internal error", err)
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
@@ -63,4 +61,3 @@ func (s *userService) AuthenticateUser(ctx context.Context, username, password s
 
 	return user, nil
 }
-*/

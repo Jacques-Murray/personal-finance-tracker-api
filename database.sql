@@ -7,6 +7,7 @@ CREATE TABLE categories (
     name VARCHAR(100) NOT NULL UNIQUE,
     parent_id INTEGER REFERENCES categories(id) ON DELETE
     SET NULL,
+        user_id INTEGER NO NULL REFERENCES users(id) ON DELETE CASCADE,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -19,6 +20,7 @@ CREATE TABLE transactions (
     date TIMESTAMPTZ NOT NULL,
     category_id INTEGER REFERENCES categories(id) ON DELETE
     SET NULL,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -31,9 +33,9 @@ CREATE TABLE users (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 -- Seed some initial categories
-INSERT INTO categories (name)
-VALUES ('Groceries'),
-    ('Salary'),
-    ('Rent'),
-    ('Utilities'),
-    ('Entertainment');
+INSERT INTO categories (name, user_id)
+VALUES ('Groceries', 1),
+    ('Salary', 1),
+    ('Rent', 1),
+    ('Utilities', 1),
+    ('Entertainment', 1);

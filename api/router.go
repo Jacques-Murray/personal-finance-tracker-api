@@ -2,6 +2,7 @@ package api
 
 import (
 	"personal-finance-tracker-api/api/handlers"
+	"personal-finance-tracker-api/api/middleware"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -44,6 +45,17 @@ func SetupRouter(
 	// Base path for the API
 	api := r.Group("/api/v1")
 	{
+		// User routes
+		users := api.Group("/users")
+		{
+			users.POST("/register", userHandler.RegisterUser)
+			users.POST("/login", userHandler.LoginUser)
+		}
+
+		// Protected routes group: Apply AuthMiddleware to these routes
+		protected := api.Group("/")
+		protected.Use(middleware.AuthMiddleware())
+
 		// Transaction routes
 		transactions := api.Group("/transactions")
 		{
@@ -57,13 +69,6 @@ func SetupRouter(
 		{
 			categories.POST("", categoryHandler.CreateCategory)
 			categories.GET("", categoryHandler.GetCategories)
-		}
-
-		// New: User routes
-		users := api.Group("/users")
-		{
-			users.POST("/register", userHandler.RegisterUser)
-			// users.POST("/login", userHandler.LoginUser) // Will be implemented later
 		}
 	}
 

@@ -9,7 +9,7 @@ import (
 // CategoryService defines the interface for category-related business logic
 type CategoryService interface {
 	CreateCategory(ctx context.Context, category *models.Category) (*models.Category, error)
-	GetCategories(ctx context.Context) ([]models.Category, error)
+	GetCategories(ctx context.Context, userID uint, limit, offset int) ([]models.Category, error)
 }
 
 // categoryService implements the CategoryService interface
@@ -33,8 +33,8 @@ func (s *categoryService) CreateCategory(ctx context.Context, category *models.C
 }
 
 // GetCategories retrieves a list of categories, applying business rules if any
-func (s *categoryService) GetCategories(ctx context.Context) ([]models.Category, error) {
-	categories, err := s.repo.GetCategories(ctx)
+func (s *categoryService) GetCategories(ctx context.Context, userID uint, limit, offset int) ([]models.Category, error) {
+	categories, err := s.repo.GetCategories(ctx, userID, limit, offset)
 	if err != nil {
 		return nil, err
 	}

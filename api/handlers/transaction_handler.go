@@ -4,10 +4,12 @@ import (
 	"encoding/csv"
 	"fmt"
 	"net/http"
+	"personal-finance-tracker-api/api/middleware"
 	"personal-finance-tracker-api/api/responses"
 	appErrors "personal-finance-tracker-api/internal/errors"
 	"personal-finance-tracker-api/internal/models"
 	"personal-finance-tracker-api/internal/services"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -43,6 +45,16 @@ func NewTransactionHandler(service services.TransactionService) *TransactionHand
 // @Failure 500 {object} responses.ErrorResponse "Internal server error"
 // @Router /transactions [post]
 func (h *TransactionHandler) CreateTransaction(c *gin.Context) {
+	userID, exists := middleware.GetUserIDFromContext(c)
+	if !exists {
+		logrus.Error("CreateTransaction: UserID not found in context, authentication middleware error.")
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse{
+			Error:   "Internal Server Error",
+			Details: "Authenticated user ID not found.",
+		})
+		return
+	}
+
 	var transaction models.Transaction
 	if err := c.ShouldBindJSON(&transaction); err != nil {
 		logrus.WithFields(logrus.Fields{
@@ -54,6 +66,9 @@ func (h *TransactionHandler) CreateTransaction(c *gin.Context) {
 		})
 		return
 	}
+
+	// Set the UserID from the authenticated context
+	transaction.UserID = userID
 
 	if err := validate.Struct(transaction); err != nil {
 		if validationErrors, ok := err.(validator.ValidationErrors); ok {
@@ -68,6 +83,7 @@ func (h *TransactionHandler) CreateTransaction(c *gin.Context) {
 			logrus.WithFields(logrus.Fields{
 				"validationErrors": fields,
 				"transaction":      transaction,
+				"userID":           userID,
 			}).Warn("CreateTransaction: Input validation error.")
 			c.JSON(http.StatusBadRequest, responses.ValidationErrorResponse{
 				Error:  "Validation Error",
@@ -78,6 +94,7 @@ func (h *TransactionHandler) CreateTransaction(c *gin.Context) {
 		logrus.WithFields(logrus.Fields{
 			"error":       err.Error(),
 			"transaction": transaction,
+			"userID":      userID,
 		}).Warn("CreateTransaction: Unknown input validation error.")
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse{
 			Error:   "Bad Request",
@@ -86,13 +103,13 @@ func (h *TransactionHandler) CreateTransaction(c *gin.Context) {
 		return
 	}
 
-	// Call service layer instead of repository
 	createdTransaction, err := h.Service.CreateTransaction(c.Request.Context(), &transaction)
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
 			"error":       err.Error(),
 			"transaction": transaction,
 			"errorType":   appErrors.GetType(err),
+			"userID":      userID,
 		}).Error("CreateTransaction: Failed to create transaction via service.")
 
 		if appErrors.IsType(err, appErrors.TypeConflict) {
@@ -120,6 +137,7 @@ func (h *TransactionHandler) CreateTransaction(c *gin.Context) {
 		"transactionID": createdTransaction.ID,
 		"amount":        createdTransaction.Amount,
 		"type":          createdTransaction.Type,
+		"userID":        userID,
 	}).Info("CreateTransaction: Transaction created successfully.")
 	c.JSON(http.StatusCreated, createdTransaction)
 }
@@ -133,12 +151,45 @@ func (h *TransactionHandler) CreateTransaction(c *gin.Context) {
 // @Failure 500 {object} responses.ErrorResponse "Internal server error"
 // @Router /transactions [get]
 func (h *TransactionHandler) GetTransactions(c *gin.Context) {
-	// Call service layer instead of repository
-	transactions, err := h.Service.GetTransactions(c.Request.Context())
+	userID, exists := middleware.GetUserIDFromContext(c)
+	if !exists {
+		logrus.Error("GetTransactions: UserID not found in context, authentication middleware error.")
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse{
+			Error:   "Internal Server Error",
+			Details: "Authenticated user ID not found.",
+		})
+		return
+	}
+
+	limitStr := c.DefaultQuery("limit", "100")
+	offsetStr := c.DefaultQuery("offset", "0")
+
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit <= 0 {
+		logrus.WithFields(logrus.Fields{
+			"limitStr": limitStr,
+			"error":    err,
+			"userID":   userID,
+		}).Warn("GetTransactions: Invalid limit parameter, defaulting to 100.")
+		limit = 100
+	}
+
+	offset, err := strconv.Atoi(offsetStr)
+	if err != nil || offset < 0 {
+		logrus.WithFields(logrus.Fields{
+			"offsetStr": offsetStr,
+			"error":     err,
+			"userID":    userID,
+		}).Warn("GetTransactions: Invalid offset parameter, defaulting to 0.")
+		offset = 0
+	}
+
+	transactions, err := h.Service.GetTransactions(c.Request.Context(), userID, limit, offset)
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
 			"error":     err.Error(),
 			"errorType": appErrors.GetType(err),
+			"userID":    userID,
 		}).Error("GetTransactions: Failed to retrieve transactions via service.")
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse{
 			Error:   "Internal Server Error",
@@ -148,8 +199,11 @@ func (h *TransactionHandler) GetTransactions(c *gin.Context) {
 	}
 
 	logrus.WithFields(logrus.Fields{
-		"count": len(transactions),
-	}).Info("GetTransactions: Transactions retrieved successfully.")
+		"count":  len(transactions),
+		"limit":  limit,
+		"offset": offset,
+		"userID": userID,
+	}).Info("GetTransactions: Transactions retrieved successfully with pagination and user filter.")
 	c.JSON(http.StatusOK, transactions)
 }
 
@@ -162,12 +216,22 @@ func (h *TransactionHandler) GetTransactions(c *gin.Context) {
 // @Failure 500 {object} responses.ErrorResponse "Internal server error"
 // @Router /transactions/export/csv [get]
 func (h *TransactionHandler) ExportTransactionsCSV(c *gin.Context) {
-	// Call service layer instead of repository
-	transactions, err := h.Service.ExportTransactionsCSV(c.Request.Context())
+	userID, exists := middleware.GetUserIDFromContext(c)
+	if !exists {
+		logrus.Error("ExportTransactionsCSV: UserID not found in context, authentication middleware error.")
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse{
+			Error:   "Internal Server Error",
+			Details: "Authenticated user ID not found.",
+		})
+		return
+	}
+
+	transactions, err := h.Service.ExportTransactionsCSV(c.Request.Context(), userID)
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
 			"error":     err.Error(),
 			"errorType": appErrors.GetType(err),
+			"userID":    userID,
 		}).Error("ExportTransactionsCSV: Failed to retrieve transactions for CSV export via service.")
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse{
 			Error:   "Internal Server Error",
@@ -186,7 +250,8 @@ func (h *TransactionHandler) ExportTransactionsCSV(c *gin.Context) {
 	header := []string{"ID", "Description", "Amount", "Type", "Date", "Category"}
 	if err := writer.Write(header); err != nil {
 		logrus.WithFields(logrus.Fields{
-			"error": err.Error(),
+			"error":  err.Error(),
+			"userID": userID,
 		}).Error("ExportTransactionsCSV: Failed to write CSV header.")
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse{
 			Error:   "Internal Server Error",
@@ -208,6 +273,7 @@ func (h *TransactionHandler) ExportTransactionsCSV(c *gin.Context) {
 			logrus.WithFields(logrus.Fields{
 				"error":         err.Error(),
 				"transactionID": t.ID,
+				"userID":        userID,
 			}).Error("ExportTransactionsCSV: Failed to write CSV record. Stopping export.")
 			c.JSON(http.StatusInternalServerError, responses.ErrorResponse{
 				Error:   "Internal Server Error",
@@ -216,5 +282,7 @@ func (h *TransactionHandler) ExportTransactionsCSV(c *gin.Context) {
 			return
 		}
 	}
-	logrus.Info("ExportTransactionsCSV: Transactions exported successfully.")
+	logrus.WithFields(logrus.Fields{
+		"userID": userID,
+	}).Info("ExportTransactionsCSV: Transactions exported successfully.")
 }

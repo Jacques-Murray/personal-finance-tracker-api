@@ -2,10 +2,12 @@ package handlers
 
 import (
 	"net/http"
+	"personal-finance-tracker-api/api/middleware"
 	"personal-finance-tracker-api/api/responses"
 	appErrors "personal-finance-tracker-api/internal/errors"
 	"personal-finance-tracker-api/internal/models"
 	"personal-finance-tracker-api/internal/services"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
@@ -34,10 +36,21 @@ func NewCategoryHandler(service services.CategoryService) *CategoryHandler {
 // @Failure 500 {object} responses.ErrorResponse "Internal server error"
 // @Router /categories [post]
 func (h *CategoryHandler) CreateCategory(c *gin.Context) {
+	userID, exists := middleware.GetUserIDFromContext(c)
+	if !exists {
+		logrus.Error("CreateCategory: UserID not found in context, authentication middleware error.")
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse{
+			Error:   "Internal Server Error",
+			Details: "Authenticated user ID not found.",
+		})
+		return
+	}
+
 	var category models.Category
 	if err := c.ShouldBindJSON(&category); err != nil {
 		logrus.WithFields(logrus.Fields{
-			"error": err.Error(),
+			"error":  err.Error(),
+			"userID": userID,
 		}).Warn("CreateCategory: Invalid JSON format or data type mismatch.")
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse{
 			Error:   "Bad Request",
@@ -46,17 +59,16 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 		return
 	}
 
-	// You could add validation here for Category as well, similar to Transaction
-	// For example, if category name is required and has a min/max length:
-	// if err := validate.Struct(category); err != nil { ... }
+	// Set the UserID from the authenticated context
+	category.UserID = userID
 
-	// Call service layer instead of repository
 	createdCategory, err := h.Service.CreateCategory(c.Request.Context(), &category)
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
 			"error":     err.Error(),
 			"category":  category,
 			"errorType": appErrors.GetType(err),
+			"userID":    userID,
 		}).Error("CreateCategory: Failed to create category via service.")
 
 		if appErrors.IsType(err, appErrors.TypeAlreadyExists) {
@@ -77,6 +89,7 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 	logrus.WithFields(logrus.Fields{
 		"categoryID":   createdCategory.ID,
 		"categoryName": createdCategory.Name,
+		"userID":       userID,
 	}).Info("CreateCategory: Category created successfully.")
 	c.JSON(http.StatusCreated, createdCategory)
 }
@@ -90,12 +103,45 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 // @Failure 500 {object} responses.ErrorResponse "Internal server error"
 // @Router /categories [get]
 func (h *CategoryHandler) GetCategories(c *gin.Context) {
-	// Call service layer instead of repository
-	categories, err := h.Service.GetCategories(c.Request.Context())
+	userID, exists := middleware.GetUserIDFromContext(c)
+	if !exists {
+		logrus.Error("GetCategories: UserID not found in context, authentication middleware error.")
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse{
+			Error:   "Internal Server Error",
+			Details: "Authenticated user ID not found.",
+		})
+		return
+	}
+
+	limitStr := c.Query("limit")
+	offsetStr := c.Query("offset")
+
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit <= 0 {
+		logrus.WithFields(logrus.Fields{
+			"limitStr": limitStr,
+			"error":    err,
+			"userID":   userID,
+		}).Warn("GetCategories: Invalid limit parameter, defaulting to 100.")
+		limit = 100
+	}
+
+	offset, err := strconv.Atoi(offsetStr)
+	if err != nil || offset < 0 {
+		logrus.WithFields(logrus.Fields{
+			"offsetStr": offsetStr,
+			"error":     err,
+			"userID":    userID,
+		}).Warn("GetCategories: Invalid offset parameter, defaulting to 0.")
+		offset = 0
+	}
+
+	categories, err := h.Service.GetCategories(c.Request.Context(), userID, limit, offset)
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
 			"error":     err.Error(),
 			"errorType": appErrors.GetType(err),
+			"userID":    userID,
 		}).Error("GetCategories: Failed to retrieve categories via service.")
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse{
 			Error:   "Internal Server Error",
@@ -106,6 +152,6 @@ func (h *CategoryHandler) GetCategories(c *gin.Context) {
 
 	logrus.WithFields(logrus.Fields{
 		"count": len(categories),
-	}).Info("GetCategories: Categories retrieved successfully.")
+	}).Info("GetCategories: Categories retrieved successfully with pagination.")
 	c.JSON(http.StatusOK, categories)
 }

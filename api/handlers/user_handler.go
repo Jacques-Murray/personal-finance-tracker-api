@@ -4,17 +4,17 @@ import (
 	"fmt"
 	"net/http"
 	"personal-finance-tracker-api/api/responses"
+	"personal-finance-tracker-api/config"
 	appErrors "personal-finance-tracker-api/internal/errors"
-	"personal-finance-tracker-api/internal/services" // Import services package for UserService
+	"personal-finance-tracker-api/internal/services"
+	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-playground/validator/v10" // Import validator
-	"github.com/sirupsen/logrus"             // Import logrus
+	"github.com/go-playground/validator/v10"
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/sirupsen/logrus"
 )
 
-// Re-use the global validator instance from other handlers if possible,
-// or initialize a new one if this package is entirely separate.
-// For simplicity, we'll initialize it here.
 var userValidate *validator.Validate
 
 func init() {
@@ -35,6 +35,17 @@ func NewUserHandler(userService services.UserService) *UserHandler {
 type RegisterUserRequest struct {
 	Username string `json:"username" validate:"required,min=3,max=50"`
 	Password string `json:"password" validate:"required,min=6"` // Basic password validation
+}
+
+// LoginUserRequest represents the request body for user login
+type LoginUserRequest struct {
+	Username string `json:"username" validate:"required"`
+	Password string `json:"password" validate:"required"`
+}
+
+// LoginResponse represents the response body for a successful login
+type LoginResponse struct {
+	Token string `json:"token"`
 }
 
 // RegisterUser handles new user registration
@@ -133,31 +144,114 @@ func (h *UserHandler) RegisterUser(c *gin.Context) {
 	c.JSON(http.StatusCreated, user)
 }
 
-// You can add more user-related handler methods here, such as LoginUser
-/*
-// LoginUserRequest represents the request body for user login
-type LoginUserRequest struct {
-    Username string `json:"username" validate:"required"`
-    Password string `json:"password" validate:"required"`
-}
-
-// LoginUser handles user login and potentially issues a token
+// LoginUser handles user login and issues a JWT token
 // @Summary Log in a user
 // @Description Authenticate a user and return an authentication token
 // @Tags users
 // @Accept json
 // @Produce json
-// @Param request body LoginUserRequest true "User login credentials"
-// @Success 200 {object} map[string]string "Authentication successful (e.g., {"token": "jwt_token"})"
+// @Param request body LoginUserRequest true "User login details"
+// @Success 200 {object} LoginResponse "Authentication successful with JWT token"
 // @Failure 400 {object} responses.ValidationErrorResponse "Invalid input"
 // @Failure 401 {object} responses.ErrorResponse "Unauthorized (invalid credentials)"
 // @Failure 500 {object} responses.ErrorResponse "Internal server error"
 // @Router /users/login [post]
 func (h *UserHandler) LoginUser(c *gin.Context) {
-    // ... validation ...
-    // user, err := h.UserService.AuthenticateUser(c.Request.Context(), req.Username, req.Password)
-    // ... handle errors (Unauthorized, Internal) ...
-    // Generate JWT token if successful
-    // c.JSON(http.StatusOK, gin.H{"token": "your_jwt_token"})
+	var req LoginUserRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		logrus.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Warn("LoginUser: Invalid JSON format or data type mismatch for login.")
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse{
+			Error:   "Bad Request",
+			Details: "Invalid JSON format or data type mismatch.",
+		})
+		return
+	}
+
+	if err := userValidate.Struct(req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			var fields []responses.ValidationFieldError
+			for _, fieldErr := range validationErrors {
+				fields = append(fields, responses.ValidationFieldError{
+					Field:   fieldErr.Field(),
+					Tag:     fieldErr.Tag(),
+					Message: fmt.Sprintf("Validation failed on '%s' for tag '%s'", fieldErr.Field(), fieldErr.Tag()),
+				})
+			}
+			logrus.WithFields(logrus.Fields{
+				"validationErrors": fields,
+				"username":         req.Username,
+			}).Warn("LoginUser: Input validation error for login.")
+			c.JSON(http.StatusBadRequest, responses.ValidationErrorResponse{
+				Error:  "Validation Error",
+				Fields: fields,
+			})
+			return
+		}
+		logrus.WithFields(logrus.Fields{
+			"error":    err.Error(),
+			"username": req.Username,
+		}).Warn("LoginUser: Unknown input validation error for login.")
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse{
+			Error:   "Bad Request",
+			Details: "Validation failed: " + err.Error(),
+		})
+		return
+	}
+
+	user, err := h.UserService.AuthenticateUser(c.Request.Context(), req.Username, req.Password)
+	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"error":     err.Error(),
+			"username":  req.Username,
+			"errorType": appErrors.GetType(err),
+		}).Error("LoginUser: Failed to authenticate user")
+
+		if appErrors.IsType(err, appErrors.TypeUnauthorized) {
+			c.JSON(http.StatusUnauthorized, responses.ErrorResponse{
+				Error:   "Unauthorized",
+				Details: err.Error(),
+			})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse{
+			Error:   "Internal Server Error",
+			Details: "Failed to log in.",
+		})
+		return
+	}
+
+	// Generate JWT token
+	// Define custom claims
+	claims := jwt.MapClaims{
+		"authorized": true,
+		"userID":     user.ID,
+		"username":   user.Username,
+		"exp":        time.Now().Add(time.Hour * 24).Unix(),
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+	// Sign the token with the secret
+	tokenString, err := token.SignedString([]byte(config.GetJWTSecret()))
+	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"error":    err.Error(),
+			"userID":   user.ID,
+			"username": user.Username,
+		}).Error("LoginUser: Failed to generate JWT token.")
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse{
+			Error:   "Internal Server Error",
+			Details: "Failed to generate authentication token.",
+		})
+		return
+	}
+
+	logrus.WithFields(logrus.Fields{
+		"userID":   user.ID,
+		"username": user.Username,
+	}).Info("LoginUser: User logged in successfully and JWT generated.")
+	c.JSON(http.StatusOK, LoginResponse{Token: tokenString})
 }
-*/
