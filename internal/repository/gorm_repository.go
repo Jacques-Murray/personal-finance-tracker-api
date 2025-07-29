@@ -16,8 +16,10 @@ type Repository interface {
 	GetTransactions(ctx context.Context, userID uint, limit, offset int) ([]models.Transaction, error)
 	CreateCategory(ctx context.Context, category *models.Category) error
 	GetCategories(ctx context.Context, userID uint, limit, offset int) ([]models.Category, error)
-	CreateUser(ctx context.Context, user *models.User) error                      // Added for User model
-	GetUserByUsername(ctx context.Context, username string) (*models.User, error) // Added for User model
+	CreateUser(ctx context.Context, user *models.User) error
+	GetUserByUsername(ctx context.Context, username string) (*models.User, error)
+
+	Transaction(txFunc func(txRepo Repository) error) error
 }
 
 // GormRepository is an implementation of Repository using GORM
@@ -127,4 +129,12 @@ func (r *GormRepository) GetUserByUsername(ctx context.Context, username string)
 		return nil, appErrors.NewInternalError(fmt.Sprintf("Failed to retrieve user '%s' due to database error", username), err)
 	}
 	return &user, nil
+}
+
+// Transaction executes a function within a database transaction.
+func (r *GormRepository) Transaction(txFunc func(txRepo Repository) error) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		txGormRepo := NewGormRepository(tx)
+		return txFunc(txGormRepo)
+	})
 }
