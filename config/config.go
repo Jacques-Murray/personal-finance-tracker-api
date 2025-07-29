@@ -12,12 +12,18 @@ import (
 type Config struct {
 	APIPort     string
 	DatabaseURL string
+	JWTSecret   string
 }
+
+// Global variable to hold the loaded configuration
+var appConfig *Config
 
 // New loads configuration from environment variables
 func New() *Config {
-	// godotenv.Load() will ignore the error if the .env file doesn't exist
-	// This is useful for production environments where env vars are set directly
+	if appConfig != nil {
+		return appConfig
+	}
+
 	if err := godotenv.Load(); err != nil {
 		logrus.WithFields(logrus.Fields{
 			"error": err,
@@ -35,10 +41,18 @@ func New() *Config {
 	databaseUrl := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=%s",
 		dbHost, dbUser, dbPassword, dbName, dbPort, dbSSLMode)
 
-	return &Config{
+	appConfig = &Config{
 		APIPort:     getEnv("API_PORT", "8080"),
 		DatabaseURL: databaseUrl,
+		JWTSecret:   getEnv("JWT_SECRET", "supersecretjwtkey"),
 	}
+
+	// Warn if using default JWT secret in production
+	if appConfig.JWTSecret == "supersecretjwtkey" {
+		logrus.Warn("Using default JWT_SECRET. Please set a strong, unique JWT_SECRET environment variable in production.")
+	}
+
+	return appConfig
 }
 
 // getEnv retrieves and environment variable or returns a default value
@@ -50,4 +64,12 @@ func getEnv(key, fallback string) string {
 		"key": key,
 	}).Info("Defaulting to fallback value for environment variable")
 	return fallback
+}
+
+// GetJWTSecret provides access to the loaded JWT secret
+func GetJWTSecret() string {
+	if appConfig == nil {
+		logrus.Fatal("Configuration not loaded. Call config.New() first.")
+	}
+	return appConfig.JWTSecret
 }
