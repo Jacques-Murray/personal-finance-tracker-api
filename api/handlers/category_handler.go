@@ -6,6 +6,7 @@ import (
 	appErrors "personal-finance-tracker-api/internal/errors"
 	"personal-finance-tracker-api/internal/models"
 	"personal-finance-tracker-api/internal/services"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
@@ -90,8 +91,28 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 // @Failure 500 {object} responses.ErrorResponse "Internal server error"
 // @Router /categories [get]
 func (h *CategoryHandler) GetCategories(c *gin.Context) {
-	// Call service layer instead of repository
-	categories, err := h.Service.GetCategories(c.Request.Context())
+	limitStr := c.Query("limit")
+	offsetStr := c.Query("offset")
+
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit <= 0 {
+		logrus.WithFields(logrus.Fields{
+			"limitStr": limitStr,
+			"error":    err,
+		}).Warn("GetCategories: Invalid limit parameter, defaulting to 100.")
+		limit = 100
+	}
+
+	offset, err := strconv.Atoi(offsetStr)
+	if err != nil || offset < 0 {
+		logrus.WithFields(logrus.Fields{
+			"offsetStr": offsetStr,
+			"error":     err,
+		}).Warn("GetCategories: Invalid offset parameter, defaulting to 0.")
+		offset = 0
+	}
+
+	categories, err := h.Service.GetCategories(c.Request.Context(), limit, offset)
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
 			"error":     err.Error(),
@@ -106,6 +127,6 @@ func (h *CategoryHandler) GetCategories(c *gin.Context) {
 
 	logrus.WithFields(logrus.Fields{
 		"count": len(categories),
-	}).Info("GetCategories: Categories retrieved successfully.")
+	}).Info("GetCategories: Categories retrieved successfully with pagination.")
 	c.JSON(http.StatusOK, categories)
 }

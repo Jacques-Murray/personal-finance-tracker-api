@@ -9,7 +9,7 @@ import (
 // TransactionService defines the interface for transaction-related business logic
 type TransactionService interface {
 	CreateTransaction(ctx context.Context, transaction *models.Transaction) (*models.Transaction, error)
-	GetTransactions(ctx context.Context) ([]models.Transaction, error)
+	GetTransactions(ctx context.Context, limit, offset int) ([]models.Transaction, error)
 	ExportTransactionsCSV(ctx context.Context) ([]models.Transaction, error)
 }
 
@@ -35,8 +35,8 @@ func (s *transactionService) CreateTransaction(ctx context.Context, transaction 
 }
 
 // GetTransactions retrieves a list of transactions, applying business rules if any
-func (s *transactionService) GetTransactions(ctx context.Context) ([]models.Transaction, error) {
-	transactions, err := s.repo.GetTransactions(ctx)
+func (s *transactionService) GetTransactions(ctx context.Context, limit, offset int) ([]models.Transaction, error) {
+	transactions, err := s.repo.GetTransactions(ctx, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +46,7 @@ func (s *transactionService) GetTransactions(ctx context.Context) ([]models.Tran
 
 // ExportTransactionsCSV retrieves transactions for CSV export
 func (s *transactionService) ExportTransactionsCSV(ctx context.Context) ([]models.Transaction, error) {
-	transactions, err := s.repo.GetTransactions(ctx)
+	transactions, err := s.repo.GetTransactions(ctx, 0, 0)
 	if err != nil {
 		return nil, err
 	}

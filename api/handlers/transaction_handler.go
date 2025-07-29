@@ -8,6 +8,7 @@ import (
 	appErrors "personal-finance-tracker-api/internal/errors"
 	"personal-finance-tracker-api/internal/models"
 	"personal-finance-tracker-api/internal/services"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -133,8 +134,28 @@ func (h *TransactionHandler) CreateTransaction(c *gin.Context) {
 // @Failure 500 {object} responses.ErrorResponse "Internal server error"
 // @Router /transactions [get]
 func (h *TransactionHandler) GetTransactions(c *gin.Context) {
-	// Call service layer instead of repository
-	transactions, err := h.Service.GetTransactions(c.Request.Context())
+	limitStr := c.DefaultQuery("limit", "100")
+	offsetStr := c.DefaultQuery("offset", "0")
+
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit <= 0 {
+		logrus.WithFields(logrus.Fields{
+			"limitStr": limitStr,
+			"error":    err,
+		}).Warn("GetTransactions: Invalid limit parameter, defaulting to 100.")
+		limit = 100
+	}
+
+	offset, err := strconv.Atoi(offsetStr)
+	if err != nil || offset < 0 {
+		logrus.WithFields(logrus.Fields{
+			"offsetStr": offsetStr,
+			"error":     err,
+		}).Warn("GetTransactions: Invalid offset parameter, defaulting to 0.")
+		offset = 0
+	}
+
+	transactions, err := h.Service.GetTransactions(c.Request.Context(), limit, offset)
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
 			"error":     err.Error(),
@@ -148,7 +169,9 @@ func (h *TransactionHandler) GetTransactions(c *gin.Context) {
 	}
 
 	logrus.WithFields(logrus.Fields{
-		"count": len(transactions),
+		"count":  len(transactions),
+		"limit":  limit,
+		"offset": offset,
 	}).Info("GetTransactions: Transactions retrieved successfully.")
 	c.JSON(http.StatusOK, transactions)
 }
