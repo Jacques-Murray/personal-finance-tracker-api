@@ -45,13 +45,15 @@ func main() {
 	// Create service instances, injecting the repository
 	transactionService := services.NewTransactionService(repo)
 	categoryService := services.NewCategoryService(repo)
+	userService := services.NewUserService(repo)
 
 	// Create handler instances, injecting the services
 	transactionHandler := handlers.NewTransactionHandler(transactionService)
 	categoryHandler := handlers.NewCategoryHandler(categoryService)
+	userHandler := handlers.NewUserHandler(userService)
 
-	// Set up the router, passing the initialized handlers
-	router := api.SetupRouter(transactionHandler, categoryHandler)
+	// Set up the router, passing all initialized handlers
+	router := api.SetupRouter(transactionHandler, categoryHandler, userHandler)
 
 	// Start the server
 	serverAddr := fmt.Sprintf(":%s", cfg.APIPort)

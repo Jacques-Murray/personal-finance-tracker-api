@@ -18,6 +18,7 @@ import (
 func SetupRouter(
 	transactionHandler *handlers.TransactionHandler,
 	categoryHandler *handlers.CategoryHandler,
+	userHandler *handlers.UserHandler,
 ) *gin.Engine {
 	r := gin.Default()
 
@@ -25,7 +26,7 @@ func SetupRouter(
 	r.Use(func(c *gin.Context) {
 		startTime := time.Now()
 
-		c.Next() // Process the request
+		c.Next()
 
 		endTime := time.Now()
 		latency := endTime.Sub(startTime)
@@ -39,10 +40,6 @@ func SetupRouter(
 			"user-agent": c.Request.UserAgent(),
 		}).Info("Request completed")
 	})
-
-	// Handlers are now passed in, no longer created here
-	// transactionHandler := handlers.NewTransactionHandler(repo)
-	// categoryHandler := handlers.NewCategoryHandler(repo)
 
 	// Base path for the API
 	api := r.Group("/api/v1")
@@ -60,6 +57,13 @@ func SetupRouter(
 		{
 			categories.POST("", categoryHandler.CreateCategory)
 			categories.GET("", categoryHandler.GetCategories)
+		}
+
+		// New: User routes
+		users := api.Group("/users")
+		{
+			users.POST("/register", userHandler.RegisterUser)
+			// users.POST("/login", userHandler.LoginUser) // Will be implemented later
 		}
 	}
 
