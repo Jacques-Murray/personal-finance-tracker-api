@@ -5,8 +5,10 @@ import (
 	"os"
 
 	"personal-finance-tracker-api/api"
+	"personal-finance-tracker-api/api/handlers"
 	"personal-finance-tracker-api/config"
 	"personal-finance-tracker-api/internal/repository"
+	"personal-finance-tracker-api/internal/services"
 
 	"github.com/sirupsen/logrus"
 )
@@ -37,11 +39,21 @@ func main() {
 	// Initialize database connection
 	db := repository.InitDB(cfg.DatabaseURL)
 
-	// Create a new repository instance
+	// Create repository instance
 	repo := repository.NewGormRepository(db)
 
-	// Set up the router
-	router := api.SetupRouter(repo)
+	// Create service instances, injecting the repository
+	transactionService := services.NewTransactionService(repo)
+	categoryService := services.NewCategoryService(repo)
+	userService := services.NewUserService(repo)
+
+	// Create handler instances, injecting the services
+	transactionHandler := handlers.NewTransactionHandler(transactionService)
+	categoryHandler := handlers.NewCategoryHandler(categoryService)
+	userHandler := handlers.NewUserHandler(userService)
+
+	// Set up the router, passing all initialized handlers
+	router := api.SetupRouter(transactionHandler, categoryHandler, userHandler)
 
 	// Start the server
 	serverAddr := fmt.Sprintf(":%s", cfg.APIPort)
