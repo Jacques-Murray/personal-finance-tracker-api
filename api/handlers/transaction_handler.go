@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"personal-finance-tracker-api/api/responses"
+	appErrors "personal-finance-tracker-api/internal/errors"
 	"personal-finance-tracker-api/internal/models"
 	"personal-finance-tracker-api/internal/repository"
 
@@ -45,8 +46,7 @@ func (h *TransactionHandler) CreateTransaction(c *gin.Context) {
 	var transaction models.Transaction
 	if err := c.ShouldBindJSON(&transaction); err != nil {
 		logrus.WithFields(logrus.Fields{
-			"error":   err.Error(),
-			"payload": c.Request.Body,
+			"error": err.Error(),
 		}).Warn("CreateTransaction: Invalid JSON format or data type mismatch")
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse{
 			Error:   "Bad Request",
@@ -93,7 +93,24 @@ func (h *TransactionHandler) CreateTransaction(c *gin.Context) {
 		logrus.WithFields(logrus.Fields{
 			"error":       err.Error(),
 			"transaction": transaction,
+			"errorType":   appErrors.GetType(err),
 		}).Error("CreateTransaction: Failed to create transaction in repository")
+
+		if appErrors.IsType(err, appErrors.TypeConflict) {
+			c.JSON(http.StatusConflict, responses.ErrorResponse{
+				Error:   "Conflict",
+				Details: err.Error(),
+			})
+			return
+		}
+		if appErrors.IsType(err, appErrors.TypeValidation) {
+			c.JSON(http.StatusBadRequest, responses.ErrorResponse{
+				Error:   "Bad Request",
+				Details: err.Error(),
+			})
+			return
+		}
+
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse{
 			Error:   "Internal Server Error",
 			Details: "Failed to create transaction.",
@@ -195,6 +212,7 @@ func (h *TransactionHandler) ExportTransactionsCSV(c *gin.Context) {
 				"error":         err.Error(),
 				"transactionID": t.ID,
 			}).Error("ExportTransactionsCSV: Failed to write CSV record")
+			return
 		}
 	}
 	logrus.Info("ExportTransactionsCSV: Transactions exported successfully")

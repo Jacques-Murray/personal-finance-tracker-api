@@ -47,8 +47,7 @@ func getEnv(key, fallback string) string {
 		return value
 	}
 	logrus.WithFields(logrus.Fields{
-		"key":     key,
-		"default": fallback,
+		"key": key,
 	}).Info("Defaulting to fallback value for environment variable")
 	return fallback
 }
