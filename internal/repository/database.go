@@ -14,7 +14,6 @@ func InitDB(url string) *gorm.DB {
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
 			"error": err,
-			"url":   url,
 		}).Fatal("Failed to connect to database")
 	}
 

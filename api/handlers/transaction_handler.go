@@ -195,6 +195,7 @@ func (h *TransactionHandler) ExportTransactionsCSV(c *gin.Context) {
 				"error":         err.Error(),
 				"transactionID": t.ID,
 			}).Error("ExportTransactionsCSV: Failed to write CSV record")
+			return
 		}
 	}
 	logrus.Info("ExportTransactionsCSV: Transactions exported successfully")
