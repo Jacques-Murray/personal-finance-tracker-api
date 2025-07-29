@@ -13,9 +13,9 @@ import (
 // Repository defines the interface for database operations
 type Repository interface {
 	CreateTransaction(ctx context.Context, transaction *models.Transaction) error
-	GetTransactions(ctx context.Context, limit, offset int) ([]models.Transaction, error)
+	GetTransactions(ctx context.Context, userID uint, limit, offset int) ([]models.Transaction, error)
 	CreateCategory(ctx context.Context, category *models.Category) error
-	GetCategories(ctx context.Context, limit, offset int) ([]models.Category, error)
+	GetCategories(ctx context.Context, userID uint, limit, offset int) ([]models.Category, error)
 	CreateUser(ctx context.Context, user *models.User) error                      // Added for User model
 	GetUserByUsername(ctx context.Context, username string) (*models.User, error) // Added for User model
 }
@@ -39,7 +39,7 @@ func (r *GormRepository) CreateTransaction(ctx context.Context, t *models.Transa
 				return appErrors.NewConflictError("Transaction already exists with given details", result.Error)
 			}
 			if pqErr.Code.Name() == "foreign_key_violation" {
-				return appErrors.NewValidationError("Invalid category ID for transaction", result.Error)
+				return appErrors.NewValidationError("Invalid category ID or User ID for transaction", result.Error)
 			}
 		}
 		return appErrors.NewInternalError("Failed to create transaction due to database error", result.Error)
@@ -48,9 +48,9 @@ func (r *GormRepository) CreateTransaction(ctx context.Context, t *models.Transa
 }
 
 // GetTransactions retrieves all transactions from the database with pagination
-func (r *GormRepository) GetTransactions(ctx context.Context, limit, offset int) ([]models.Transaction, error) {
+func (r *GormRepository) GetTransactions(ctx context.Context, userID uint, limit, offset int) ([]models.Transaction, error) {
 	var transactions []models.Transaction
-	query := r.db.WithContext(ctx).Preload("Category").Order("date desc")
+	query := r.db.WithContext(ctx).Where("user_id = ?", userID).Preload("Category").Order("date desc")
 
 	if limit > 0 {
 		query = query.Limit(limit)
@@ -74,6 +74,9 @@ func (r *GormRepository) CreateCategory(ctx context.Context, c *models.Category)
 			if pqErr.Code.Name() == "unique_violation" {
 				return appErrors.NewAlreadyExistsError(fmt.Sprintf("Category with name '%s' already exists", c.Name), result.Error)
 			}
+			if pqErr.Code.Name() == "foreign_key_violation" {
+				return appErrors.NewValidationError("Invalid User ID for category", result.Error)
+			}
 		}
 		return appErrors.NewInternalError("Failed to create category due to database error", result.Error)
 	}
@@ -81,9 +84,9 @@ func (r *GormRepository) CreateCategory(ctx context.Context, c *models.Category)
 }
 
 // GetCategories retrieves all categories, preloading their parent category
-func (r *GormRepository) GetCategories(ctx context.Context, limit, offset int) ([]models.Category, error) {
+func (r *GormRepository) GetCategories(ctx context.Context, userID uint, limit, offset int) ([]models.Category, error) {
 	var categories []models.Category
-	query := r.db.WithContext(ctx).Preload("Parent")
+	query := r.db.WithContext(ctx).Where("user_id = ?", userID).Preload("Parent")
 
 	if limit > 0 {
 		query = query.Limit(limit)
