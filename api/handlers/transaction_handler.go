@@ -95,6 +95,22 @@ func (h *TransactionHandler) CreateTransaction(c *gin.Context) {
 			"transaction": transaction,
 			"errorType":   appErrors.GetType(err),
 		}).Error("CreateTransaction: Failed to create transaction in repository")
+
+		if appErrors.IsType(err, appErrors.TypeConflict) {
+			c.JSON(http.StatusConflict, responses.ErrorResponse{
+				Error:   "Conflict",
+				Details: err.Error(),
+			})
+			return
+		}
+		if appErrors.IsType(err, appErrors.TypeValidation) {
+			c.JSON(http.StatusBadRequest, responses.ErrorResponse{
+				Error:   "Bad Request",
+				Details: err.Error(),
+			})
+			return
+		}
+
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse{
 			Error:   "Internal Server Error",
 			Details: "Failed to create transaction.",

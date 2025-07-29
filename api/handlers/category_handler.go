@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 	"personal-finance-tracker-api/api/responses"
+	appErrors "personal-finance-tracker-api/internal/errors"
 	"personal-finance-tracker-api/internal/models"
 	"personal-finance-tracker-api/internal/repository"
 
@@ -44,11 +45,22 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 		return
 	}
 
-	if err := h.Repo.CreateCategory(c.Request.Context(), &category); err != nil {
+	err := h.Repo.CreateCategory(c.Request.Context(), &category)
+	if err != nil {
 		logrus.WithFields(logrus.Fields{
-			"error":    err.Error(),
-			"category": category,
-		}).Error("CreateCategory: Failed to create category in repository")
+			"error":     err.Error(),
+			"category":  category,
+			"errorType": appErrors.GetType(err),
+		}).Error("CreateCategory: Failed to create category in repository.")
+
+		if appErrors.IsType(err, appErrors.TypeAlreadyExists) {
+			c.JSON(http.StatusConflict, responses.ErrorResponse{
+				Error:   "Conflict",
+				Details: err.Error(),
+			})
+			return
+		}
+
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse{
 			Error:   "Internal Server Error",
 			Details: "Failed to create category.",
@@ -76,7 +88,8 @@ func (h *CategoryHandler) GetCategories(c *gin.Context) {
 	categories, err := h.Repo.GetCategories(c.Request.Context())
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
-			"error": err.Error(),
+			"error":     err.Error(),
+			"errorType": appErrors.GetType(err),
 		}).Error("GetCategories: Failed to retrieve categories from repository")
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse{
 			Error:   "Internal Server Error",
