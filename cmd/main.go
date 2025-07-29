@@ -5,10 +5,10 @@ import (
 	"os"
 
 	"personal-finance-tracker-api/api"
-	"personal-finance-tracker-api/api/handlers" // Import handlers package
+	"personal-finance-tracker-api/api/handlers"
 	"personal-finance-tracker-api/config"
 	"personal-finance-tracker-api/internal/repository"
-	"personal-finance-tracker-api/internal/services" // Import services package
+	"personal-finance-tracker-api/internal/services"
 
 	"github.com/sirupsen/logrus"
 )
@@ -51,7 +51,7 @@ func main() {
 	categoryHandler := handlers.NewCategoryHandler(categoryService)
 
 	// Set up the router, passing the initialized handlers
-	router := api.SetupRouter(transactionHandler, categoryHandler) // Changed signature
+	router := api.SetupRouter(transactionHandler, categoryHandler)
 
 	// Start the server
 	serverAddr := fmt.Sprintf(":%s", cfg.APIPort)

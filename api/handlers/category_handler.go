@@ -5,7 +5,7 @@ import (
 	"personal-finance-tracker-api/api/responses"
 	appErrors "personal-finance-tracker-api/internal/errors"
 	"personal-finance-tracker-api/internal/models"
-	"personal-finance-tracker-api/internal/services" // Import services package
+	"personal-finance-tracker-api/internal/services"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
@@ -13,12 +13,12 @@ import (
 
 // CategoryHandler holds the service for business logic access
 type CategoryHandler struct {
-	Service services.CategoryService // Changed from Repo to Service
+	Service services.CategoryService
 }
 
 // NewCategoryHandler creates a new handler for categories
-func NewCategoryHandler(service services.CategoryService) *CategoryHandler { // Changed parameter
-	return &CategoryHandler{Service: service} // Changed Repo to Service
+func NewCategoryHandler(service services.CategoryService) *CategoryHandler {
+	return &CategoryHandler{Service: service}
 }
 
 // CreateCategory handles the creation of a new category

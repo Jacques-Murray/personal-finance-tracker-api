@@ -7,7 +7,7 @@ import (
 	"personal-finance-tracker-api/api/responses"
 	appErrors "personal-finance-tracker-api/internal/errors"
 	"personal-finance-tracker-api/internal/models"
-	"personal-finance-tracker-api/internal/services" // Import services package
+	"personal-finance-tracker-api/internal/services"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -22,12 +22,12 @@ func init() {
 
 // TransactionHandler holds the service for business logic access
 type TransactionHandler struct {
-	Service services.TransactionService // Changed from Repo to Service
+	Service services.TransactionService
 }
 
 // NewTransactionHandler creates a new handler for transactions
-func NewTransactionHandler(service services.TransactionService) *TransactionHandler { // Changed parameter
-	return &TransactionHandler{Service: service} // Changed Repo to Service
+func NewTransactionHandler(service services.TransactionService) *TransactionHandler {
+	return &TransactionHandler{Service: service}
 }
 
 // CreateTransaction handles the creation of a new transaction

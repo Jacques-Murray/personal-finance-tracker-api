@@ -1,8 +1,7 @@
 package api
 
 import (
-	"personal-finance-tracker-api/api/handlers" // Import handlers package
-	// Keep this import for now if other middleware/setup uses it
+	"personal-finance-tracker-api/api/handlers"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -17,8 +16,8 @@ import (
 // SetupRouter configures the API routes and returns a Gin engine
 // It now accepts handler instances directly
 func SetupRouter(
-	transactionHandler *handlers.TransactionHandler, // Added handler parameter
-	categoryHandler *handlers.CategoryHandler, // Added handler parameter
+	transactionHandler *handlers.TransactionHandler,
+	categoryHandler *handlers.CategoryHandler,
 ) *gin.Engine {
 	r := gin.Default()
 
