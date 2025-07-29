@@ -5,20 +5,20 @@ import (
 	"personal-finance-tracker-api/api/responses"
 	appErrors "personal-finance-tracker-api/internal/errors"
 	"personal-finance-tracker-api/internal/models"
-	"personal-finance-tracker-api/internal/repository"
+	"personal-finance-tracker-api/internal/services" // Import services package
 
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 )
 
-// CategoryHandler holds the repository for database access
+// CategoryHandler holds the service for business logic access
 type CategoryHandler struct {
-	Repo repository.Repository
+	Service services.CategoryService // Changed from Repo to Service
 }
 
 // NewCategoryHandler creates a new handler for categories
-func NewCategoryHandler(repo repository.Repository) *CategoryHandler {
-	return &CategoryHandler{Repo: repo}
+func NewCategoryHandler(service services.CategoryService) *CategoryHandler { // Changed parameter
+	return &CategoryHandler{Service: service} // Changed Repo to Service
 }
 
 // CreateCategory handles the creation of a new category
@@ -29,15 +29,16 @@ func NewCategoryHandler(repo repository.Repository) *CategoryHandler {
 // @Produce json
 // @Param category body models.Category true "Category object"
 // @Success 201 {object} models.Category
-// @Failure 400 {object} map[string]string
-// @Failure 500 {object} map[string]string
+// @Failure 400 {object} responses.ErrorResponse "Invalid input"
+// @Failure 409 {object} responses.ErrorResponse "Conflict error (e.g., category name already exists)"
+// @Failure 500 {object} responses.ErrorResponse "Internal server error"
 // @Router /categories [post]
 func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 	var category models.Category
 	if err := c.ShouldBindJSON(&category); err != nil {
 		logrus.WithFields(logrus.Fields{
 			"error": err.Error(),
-		}).Warn("CreateCategory: Invalid JSON format or data type mismatch")
+		}).Warn("CreateCategory: Invalid JSON format or data type mismatch.")
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse{
 			Error:   "Bad Request",
 			Details: "Invalid JSON format or data type mismatch.",
@@ -45,13 +46,18 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 		return
 	}
 
-	err := h.Repo.CreateCategory(c.Request.Context(), &category)
+	// You could add validation here for Category as well, similar to Transaction
+	// For example, if category name is required and has a min/max length:
+	// if err := validate.Struct(category); err != nil { ... }
+
+	// Call service layer instead of repository
+	createdCategory, err := h.Service.CreateCategory(c.Request.Context(), &category)
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
 			"error":     err.Error(),
 			"category":  category,
 			"errorType": appErrors.GetType(err),
-		}).Error("CreateCategory: Failed to create category in repository.")
+		}).Error("CreateCategory: Failed to create category via service.")
 
 		if appErrors.IsType(err, appErrors.TypeAlreadyExists) {
 			c.JSON(http.StatusConflict, responses.ErrorResponse{
@@ -69,11 +75,10 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 	}
 
 	logrus.WithFields(logrus.Fields{
-		"categoryID":   category.ID,
-		"categoryName": category.Name,
-	}).Info("CreateCategory: Category successfully created")
-
-	c.JSON(http.StatusCreated, category)
+		"categoryID":   createdCategory.ID,
+		"categoryName": createdCategory.Name,
+	}).Info("CreateCategory: Category created successfully.")
+	c.JSON(http.StatusCreated, createdCategory)
 }
 
 // GetCategories handles listing all categories
@@ -82,15 +87,16 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 // @Tags categories
 // @Produce json
 // @Success 200 {array} models.Category
-// @Failure 500 {object} map[string]string
+// @Failure 500 {object} responses.ErrorResponse "Internal server error"
 // @Router /categories [get]
 func (h *CategoryHandler) GetCategories(c *gin.Context) {
-	categories, err := h.Repo.GetCategories(c.Request.Context())
+	// Call service layer instead of repository
+	categories, err := h.Service.GetCategories(c.Request.Context())
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
 			"error":     err.Error(),
 			"errorType": appErrors.GetType(err),
-		}).Error("GetCategories: Failed to retrieve categories from repository")
+		}).Error("GetCategories: Failed to retrieve categories via service.")
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse{
 			Error:   "Internal Server Error",
 			Details: "Failed to retrieve categories.",
@@ -100,7 +106,6 @@ func (h *CategoryHandler) GetCategories(c *gin.Context) {
 
 	logrus.WithFields(logrus.Fields{
 		"count": len(categories),
-	}).Info("GetCategories: Categories retrieved successfully")
-
+	}).Info("GetCategories: Categories retrieved successfully.")
 	c.JSON(http.StatusOK, categories)
 }

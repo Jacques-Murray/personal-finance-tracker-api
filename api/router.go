@@ -1,8 +1,8 @@
 package api
 
 import (
-	"personal-finance-tracker-api/api/handlers"
-	"personal-finance-tracker-api/internal/repository"
+	"personal-finance-tracker-api/api/handlers" // Import handlers package
+	// Keep this import for now if other middleware/setup uses it
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -15,14 +15,18 @@ import (
 )
 
 // SetupRouter configures the API routes and returns a Gin engine
-func SetupRouter(repo repository.Repository) *gin.Engine {
+// It now accepts handler instances directly
+func SetupRouter(
+	transactionHandler *handlers.TransactionHandler, // Added handler parameter
+	categoryHandler *handlers.CategoryHandler, // Added handler parameter
+) *gin.Engine {
 	r := gin.Default()
 
 	// Custom Logrus Middleware
 	r.Use(func(c *gin.Context) {
 		startTime := time.Now()
 
-		c.Next()
+		c.Next() // Process the request
 
 		endTime := time.Now()
 		latency := endTime.Sub(startTime)
@@ -33,13 +37,13 @@ func SetupRouter(repo repository.Repository) *gin.Engine {
 			"status":     c.Writer.Status(),
 			"latency":    latency,
 			"ip":         c.ClientIP(),
-			"user_agent": c.Request.UserAgent(),
+			"user-agent": c.Request.UserAgent(),
 		}).Info("Request completed")
 	})
 
-	// Create handlers
-	transactionHandler := handlers.NewTransactionHandler(repo)
-	categoryHandler := handlers.NewCategoryHandler(repo)
+	// Handlers are now passed in, no longer created here
+	// transactionHandler := handlers.NewTransactionHandler(repo)
+	// categoryHandler := handlers.NewCategoryHandler(repo)
 
 	// Base path for the API
 	api := r.Group("/api/v1")
