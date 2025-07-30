@@ -26,7 +26,7 @@ const docTemplate = `{
     "paths": {
         "/categories": {
             "get": {
-                "description": "Retrieve a list of all transaction categories",
+                "description": "Retrieve a list of all transaction categories with optional pagination, filtered by authenticated user",
                 "produces": [
                     "application/json"
                 ],
@@ -34,6 +34,28 @@ const docTemplate = `{
                     "categories"
                 ],
                 "summary": "Get all categories",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 100,
+                        "description": "Maximum number of categories to retrieve",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Number of categories to skip",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search categories by name (case-insensitive)",
+                        "name": "name",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -42,6 +64,18 @@ const docTemplate = `{
                             "items": {
                                 "$ref": "#/definitions/models.Category"
                             }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid query parameters",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized (missing or invalid token)",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
                         }
                     },
                     "500": {
@@ -53,7 +87,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Add a new category to the system",
+                "description": "Add a new category to the system, associated with the authenticated user",
                 "consumes": [
                     "application/json"
                 ],
@@ -83,13 +117,19 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid input",
+                        "description": "Invalid input or validation error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ValidationErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized (missing or invalid token)",
                         "schema": {
                             "$ref": "#/definitions/responses.ErrorResponse"
                         }
                     },
                     "409": {
-                        "description": "Conflict error (e.g., category name already exists)",
+                        "description": "Conflict error (e.g., category name already exists for this user)",
                         "schema": {
                             "$ref": "#/definitions/responses.ErrorResponse"
                         }
@@ -113,6 +153,48 @@ const docTemplate = `{
                     "transactions"
                 ],
                 "summary": "Get all transactions",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 100,
+                        "description": "Maximum number of transaction to retrieve",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Number of transactions to skip",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date",
+                        "description": "Filter transactions from this date (YYYY-MM-DD)",
+                        "name": "startDate",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date",
+                        "description": "Filter transactions up to this date (YYYY-MM-DD)",
+                        "name": "endDate",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by transaction type (income, expense)",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search transactions by description (case-insensitive)",
+                        "name": "description",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -121,6 +203,18 @@ const docTemplate = `{
                             "items": {
                                 "$ref": "#/definitions/models.Transaction"
                             }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid query parameters",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized (missing or invalid token)",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
                         }
                     },
                     "500": {
@@ -357,84 +451,10 @@ const docTemplate = `{
             }
         },
         "models.Category": {
-            "type": "object",
-            "properties": {
-                "createdAt": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "parent": {
-                    "$ref": "#/definitions/models.Category"
-                },
-                "parentId": {
-                    "type": "integer"
-                },
-                "updatedAt": {
-                    "type": "string"
-                }
-            }
+            "type": "object"
         },
         "models.Transaction": {
-            "type": "object",
-            "required": [
-                "amount",
-                "categoryId",
-                "date",
-                "type"
-            ],
-            "properties": {
-                "amount": {
-                    "type": "number"
-                },
-                "category": {
-                    "$ref": "#/definitions/models.Category"
-                },
-                "categoryId": {
-                    "type": "integer"
-                },
-                "createdAt": {
-                    "type": "string"
-                },
-                "date": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "type": {
-                    "enum": [
-                        "income",
-                        "expense"
-                    ],
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/models.TransactionType"
-                        }
-                    ]
-                },
-                "updatedAt": {
-                    "type": "string"
-                }
-            }
-        },
-        "models.TransactionType": {
-            "type": "string",
-            "enum": [
-                "income",
-                "expense"
-            ],
-            "x-enum-varnames": [
-                "Income",
-                "Expense"
-            ]
+            "type": "object"
         },
         "models.User": {
             "type": "object",
