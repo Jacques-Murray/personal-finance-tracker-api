@@ -16,7 +16,7 @@ type Repository interface {
 	CreateTransaction(ctx context.Context, transaction *models.Transaction) error
 	GetTransactions(ctx context.Context, userID uint, limit, offset int, startDate, endDate *time.Time, transactionType *models.TransactionType, description *string) ([]models.Transaction, error)
 	CreateCategory(ctx context.Context, category *models.Category) error
-	GetCategories(ctx context.Context, userID uint, limit, offset int) ([]models.Category, error)
+	GetCategories(ctx context.Context, userID uint, limit, offset int, name *string) ([]models.Category, error)
 	CreateUser(ctx context.Context, user *models.User) error
 	GetUserByUsername(ctx context.Context, username string) (*models.User, error)
 
@@ -105,7 +105,7 @@ func (r *GormRepository) CreateCategory(ctx context.Context, c *models.Category)
 }
 
 // GetCategories retrieves all categories, preloading their parent category
-func (r *GormRepository) GetCategories(ctx context.Context, userID uint, limit, offset int) ([]models.Category, error) {
+func (r *GormRepository) GetCategories(ctx context.Context, userID uint, limit, offset int, name *string) ([]models.Category, error) {
 	var categories []models.Category
 	query := r.db.WithContext(ctx).Where("user_id = ?", userID).Preload("Parent")
 
@@ -114,6 +114,10 @@ func (r *GormRepository) GetCategories(ctx context.Context, userID uint, limit, 
 	}
 	if offset > 0 {
 		query = query.Offset(offset)
+	}
+
+	if name != nil && *name != "" {
+		query = query.Where("name ILIKE ?", "%"+*name+"%")
 	}
 
 	err := query.Find(&categories).Error

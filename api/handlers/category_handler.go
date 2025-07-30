@@ -145,7 +145,9 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 // @Produce json
 // @Param limit query int false "Maximum number of categories to retrieve" default(100)
 // @Param offset query int false "Number of categories to skip" default(0)
+// @Param name query string false "Search categories by name (case-insensitive)"
 // @Success 200 {array} models.Category
+// @Failure 400 {object} responses.ErrorResponse "Invalid query parameters"
 // @Failure 401 {object} responses.ErrorResponse "Unauthorized (missing or invalid token)"
 // @Failure 500 {object} responses.ErrorResponse "Internal server error"
 // @Router /categories [get]
@@ -183,7 +185,13 @@ func (h *CategoryHandler) GetCategories(c *gin.Context) {
 		offset = 0
 	}
 
-	categories, err := h.Service.GetCategories(c.Request.Context(), userID, limit, offset)
+	// Filtering parameters
+	var categoryName *string
+	if nameStr := c.Query("name"); nameStr != "" {
+		categoryName = &nameStr
+	}
+
+	categories, err := h.Service.GetCategories(c.Request.Context(), userID, limit, offset, categoryName)
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
 			"error":     err.Error(),
