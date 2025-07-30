@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.10](https://github.com/Jacques-Murray/personal-finance-tracker-api/tree/1.0.10) (2025-07-30)
+
+[Full Changelog](https://github.com/Jacques-Murray/personal-finance-tracker-api/compare/1.0.9...1.0.10)
+
+**Merged pull requests:**
+
+- Enhance user and category management features [\#12](https://github.com/Jacques-Murray/personal-finance-tracker-api/pull/12) ([Jacques-Murray](https://github.com/Jacques-Murray))
+
 ## [1.0.9](https://github.com/Jacques-Murray/personal-finance-tracker-api/tree/1.0.9) (2025-07-29)
 
 [Full Changelog](https://github.com/Jacques-Murray/personal-finance-tracker-api/compare/1.0.8...1.0.9)
