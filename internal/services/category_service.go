@@ -24,9 +24,16 @@ func NewCategoryService(repo repository.Repository) CategoryService {
 
 // CreateCategory handles the creation of a new category, applying business rules if any
 func (s *categoryService) CreateCategory(ctx context.Context, category *models.Category) (*models.Category, error) {
-	// Example: Here you could add business logic specific to category creation,
-	// e.g., default subcategories, checking name conventions, etc.
-	if err := s.repo.CreateCategory(ctx, category); err != nil {
+	// Execute the creation within a database transaction
+	err := s.repo.Transaction(func(txRepo repository.Repository) error {
+		// Use txRepo for operations within this transaction
+		if err := txRepo.CreateCategory(ctx, category); err != nil {
+			return err
+		}
+		return nil
+	})
+
+	if err != nil {
 		return nil, err
 	}
 	return category, nil
