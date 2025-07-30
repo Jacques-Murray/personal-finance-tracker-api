@@ -5,6 +5,7 @@ import (
 	"fmt" // Import fmt for error messages
 	appErrors "personal-finance-tracker-api/internal/errors"
 	"personal-finance-tracker-api/internal/models"
+	"time"
 
 	"github.com/lib/pq" // Import for PostgreSQL specific error handling
 	"gorm.io/gorm"
@@ -13,7 +14,7 @@ import (
 // Repository defines the interface for database operations
 type Repository interface {
 	CreateTransaction(ctx context.Context, transaction *models.Transaction) error
-	GetTransactions(ctx context.Context, userID uint, limit, offset int) ([]models.Transaction, error)
+	GetTransactions(ctx context.Context, userID uint, limit, offset int, startDate, endDate *time.Time, transactionType *models.TransactionType, description *string) ([]models.Transaction, error)
 	CreateCategory(ctx context.Context, category *models.Category) error
 	GetCategories(ctx context.Context, userID uint, limit, offset int) ([]models.Category, error)
 	CreateUser(ctx context.Context, user *models.User) error
@@ -50,9 +51,27 @@ func (r *GormRepository) CreateTransaction(ctx context.Context, t *models.Transa
 }
 
 // GetTransactions retrieves all transactions from the database with pagination
-func (r *GormRepository) GetTransactions(ctx context.Context, userID uint, limit, offset int) ([]models.Transaction, error) {
+func (r *GormRepository) GetTransactions(ctx context.Context, userID uint, limit, offset int, startDate, endDate *time.Time, transactionType *models.TransactionType, description *string) ([]models.Transaction, error) {
 	var transactions []models.Transaction
 	query := r.db.WithContext(ctx).Where("user_id = ?", userID).Preload("Category").Order("date desc")
+
+	// Apply date range filters
+	if startDate != nil {
+		query = query.Where("date >= ?", *startDate)
+	}
+	if endDate != nil {
+		query = query.Where("date <= ?", *endDate)
+	}
+
+	// Apply transaction type filter
+	if transactionType != nil && *transactionType != "" {
+		query = query.Where("type = ?", *transactionType)
+	}
+
+	// Apply description filter
+	if description != nil && *description != "" {
+		query = query.Where("description ILIKE ?", "%"+*description+"%")
+	}
 
 	if limit > 0 {
 		query = query.Limit(limit)
