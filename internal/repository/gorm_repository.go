@@ -15,8 +15,10 @@ import (
 type Repository interface {
 	CreateTransaction(ctx context.Context, transaction *models.Transaction) error
 	GetTransactions(ctx context.Context, userID uint, limit, offset int, startDate, endDate *time.Time, transactionType *models.TransactionType, description *string) ([]models.Transaction, error)
+	DeleteTransaction(ctx context.Context, userID uint, id uint) error
 	CreateCategory(ctx context.Context, category *models.Category) error
 	GetCategories(ctx context.Context, userID uint, limit, offset int, name *string) ([]models.Category, error)
+	DeleteCategory(ctx context.Context, userID uint, id uint) error
 	CreateUser(ctx context.Context, user *models.User) error
 	GetUserByUsername(ctx context.Context, username string) (*models.User, error)
 
@@ -87,6 +89,18 @@ func (r *GormRepository) GetTransactions(ctx context.Context, userID uint, limit
 	return transactions, nil
 }
 
+// DeleteTransaction soft deletes a transaction for a specific user.
+func (r *GormRepository) DeleteTransaction(ctx context.Context, userID uint, id uint) error {
+	result := r.db.WithContext(ctx).Where("user_id = ?", userID).Delete(&models.Transaction{}, id)
+	if result.Error != nil {
+		return appErrors.NewInternalError(fmt.Sprintf("Failed to soft delete transaction with ID %d", id), result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return appErrors.NewNotFoundError(fmt.Sprintf("Transaction with ID %d not found or not owned by user", id), nil)
+	}
+	return nil
+}
+
 // CreateCategory adds a new category to the database
 func (r *GormRepository) CreateCategory(ctx context.Context, c *models.Category) error {
 	result := r.db.WithContext(ctx).Create(c)
@@ -125,6 +139,18 @@ func (r *GormRepository) GetCategories(ctx context.Context, userID uint, limit, 
 		return nil, appErrors.NewInternalError("Failed to retrieve categories from database", err)
 	}
 	return categories, nil
+}
+
+// DeleteCategory soft deletes a category for a specific user.
+func (r *GormRepository) DeleteCategory(ctx context.Context, userID uint, id uint) error {
+	result := r.db.WithContext(ctx).Where("user_id = ?", userID).Delete(&models.Category{}, id)
+	if result.Error != nil {
+		return appErrors.NewInternalError(fmt.Sprintf("Failed to soft delete category with ID %d", id), result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return appErrors.NewNotFoundError(fmt.Sprintf("Category with ID %d not found or not owned by user", id), nil)
+	}
+	return nil
 }
 
 // CreateUser adds a new user to the database
