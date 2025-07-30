@@ -9,7 +9,9 @@ CREATE TABLE categories (
     SET NULL,
         user_id INTEGER NO NULL REFERENCES users(id) ON DELETE CASCADE,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        deleted_at TIMESTAMPTZ,
+        UNIQUE (name, user_id, deleted_at)
 );
 -- Creates the 'transactions' table to store financial records
 CREATE TABLE transactions (
@@ -22,7 +24,8 @@ CREATE TABLE transactions (
     SET NULL,
         user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        deleted_at TIMESTAMPTZ,
 );
 -- Creates the 'users' table to store user authentication information
 CREATE TABLE users (

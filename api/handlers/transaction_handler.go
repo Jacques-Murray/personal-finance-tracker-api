@@ -10,6 +10,7 @@ import (
 	"personal-finance-tracker-api/internal/models"
 	"personal-finance-tracker-api/internal/services"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -147,7 +148,15 @@ func (h *TransactionHandler) CreateTransaction(c *gin.Context) {
 // @Description Retrieve a list of all transactions, ordered by date
 // @Tags transactions
 // @Produce json
+// @Param limit query int false "Maximum number of transaction to retrieve" default(100)
+// @Param offset query int false "Number of transactions to skip" default(0)
+// @Param startDate query string false "Filter transactions from this date (YYYY-MM-DD)" format(date)
+// @Param endDate query string false "Filter transactions up to this date (YYYY-MM-DD)" format(date)
+// @Param type query string false "Filter by transaction type (income, expense)" enum(income,expense)
+// @Param description query string false "Search transactions by description (case-insensitive)"
 // @Success 200 {array} models.Transaction
+// @Failure 400 {object} responses.ErrorResponse "Invalid query parameters"
+// @Failure 401 {object} responses.ErrorResponse "Unauthorized (missing or invalid token)"
 // @Failure 500 {object} responses.ErrorResponse "Internal server error"
 // @Router /transactions [get]
 func (h *TransactionHandler) GetTransactions(c *gin.Context) {
@@ -184,7 +193,66 @@ func (h *TransactionHandler) GetTransactions(c *gin.Context) {
 		offset = 0
 	}
 
-	transactions, err := h.Service.GetTransactions(c.Request.Context(), userID, limit, offset)
+	// Filtering parameters
+	var startDate *time.Time
+	if sdStr := c.Query("startDate"); sdStr != "" {
+		parsedDate, err := time.Parse("2006-01-02", sdStr)
+		if err != nil {
+			logrus.WithFields(logrus.Fields{
+				"startDateStr": sdStr,
+				"error":        err,
+				"userID":       userID,
+			}).Warn("GetTransactions: Invalid startDate parameter format.")
+			c.JSON(http.StatusBadRequest, responses.ErrorResponse{
+				Error:   "Bad Request",
+				Details: "Invalid startDate format. Expected YYYY-MM-DD.",
+			})
+			return
+		}
+		startDate = &parsedDate
+	}
+
+	var endDate *time.Time
+	if edStr := c.Query("endDate"); edStr != "" {
+		parsedDate, err := time.Parse("2006-01-02", edStr)
+		if err != nil {
+			logrus.WithFields(logrus.Fields{
+				"endDateStr": edStr,
+				"error":      err,
+				"userID":     userID,
+			}).Warn("GetTransactions: Invalid endDate parameter format.")
+			c.JSON(http.StatusBadRequest, responses.ErrorResponse{
+				Error:   "Bad Request",
+				Details: "Invalid endDate format. Expected YYYY-MM-DD.",
+			})
+			return
+		}
+		endDate = &parsedDate
+	}
+
+	var transactionType *models.TransactionType
+	if typeStr := c.Query("type"); typeStr != "" {
+		tt := models.TransactionType(typeStr)
+		if tt != models.Income && tt != models.Expense {
+			logrus.WithFields(logrus.Fields{
+				"typeStr": typeStr,
+				"userID":  userID,
+			}).Warn("GetTransactions: Invalid transaction type parameter.")
+			c.JSON(http.StatusBadRequest, responses.ErrorResponse{
+				Error:   "Bad Request",
+				Details: "Invalid 'type' parameter. Must be 'income' or 'expense'.",
+			})
+			return
+		}
+		transactionType = &tt
+	}
+
+	var description *string
+	if descStr := c.Query("description"); descStr != "" {
+		description = &descStr
+	}
+
+	transactions, err := h.Service.GetTransactions(c.Request.Context(), userID, limit, offset, startDate, endDate, transactionType, description)
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
 			"error":     err.Error(),

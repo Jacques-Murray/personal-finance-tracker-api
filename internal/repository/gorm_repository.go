@@ -5,6 +5,7 @@ import (
 	"fmt" // Import fmt for error messages
 	appErrors "personal-finance-tracker-api/internal/errors"
 	"personal-finance-tracker-api/internal/models"
+	"time"
 
 	"github.com/lib/pq" // Import for PostgreSQL specific error handling
 	"gorm.io/gorm"
@@ -13,11 +14,15 @@ import (
 // Repository defines the interface for database operations
 type Repository interface {
 	CreateTransaction(ctx context.Context, transaction *models.Transaction) error
-	GetTransactions(ctx context.Context, userID uint, limit, offset int) ([]models.Transaction, error)
+	GetTransactions(ctx context.Context, userID uint, limit, offset int, startDate, endDate *time.Time, transactionType *models.TransactionType, description *string) ([]models.Transaction, error)
+	DeleteTransaction(ctx context.Context, userID uint, id uint) error
 	CreateCategory(ctx context.Context, category *models.Category) error
-	GetCategories(ctx context.Context, userID uint, limit, offset int) ([]models.Category, error)
-	CreateUser(ctx context.Context, user *models.User) error                      // Added for User model
-	GetUserByUsername(ctx context.Context, username string) (*models.User, error) // Added for User model
+	GetCategories(ctx context.Context, userID uint, limit, offset int, name *string) ([]models.Category, error)
+	DeleteCategory(ctx context.Context, userID uint, id uint) error
+	CreateUser(ctx context.Context, user *models.User) error
+	GetUserByUsername(ctx context.Context, username string) (*models.User, error)
+
+	Transaction(txFunc func(txRepo Repository) error) error
 }
 
 // GormRepository is an implementation of Repository using GORM
@@ -48,9 +53,27 @@ func (r *GormRepository) CreateTransaction(ctx context.Context, t *models.Transa
 }
 
 // GetTransactions retrieves all transactions from the database with pagination
-func (r *GormRepository) GetTransactions(ctx context.Context, userID uint, limit, offset int) ([]models.Transaction, error) {
+func (r *GormRepository) GetTransactions(ctx context.Context, userID uint, limit, offset int, startDate, endDate *time.Time, transactionType *models.TransactionType, description *string) ([]models.Transaction, error) {
 	var transactions []models.Transaction
 	query := r.db.WithContext(ctx).Where("user_id = ?", userID).Preload("Category").Order("date desc")
+
+	// Apply date range filters
+	if startDate != nil {
+		query = query.Where("date >= ?", *startDate)
+	}
+	if endDate != nil {
+		query = query.Where("date <= ?", *endDate)
+	}
+
+	// Apply transaction type filter
+	if transactionType != nil && *transactionType != "" {
+		query = query.Where("type = ?", *transactionType)
+	}
+
+	// Apply description filter
+	if description != nil && *description != "" {
+		query = query.Where("description ILIKE ?", "%"+*description+"%")
+	}
 
 	if limit > 0 {
 		query = query.Limit(limit)
@@ -64,6 +87,18 @@ func (r *GormRepository) GetTransactions(ctx context.Context, userID uint, limit
 		return nil, appErrors.NewInternalError("Failed to retrieve transactions from database", err)
 	}
 	return transactions, nil
+}
+
+// DeleteTransaction soft deletes a transaction for a specific user.
+func (r *GormRepository) DeleteTransaction(ctx context.Context, userID uint, id uint) error {
+	result := r.db.WithContext(ctx).Where("user_id = ?", userID).Delete(&models.Transaction{}, id)
+	if result.Error != nil {
+		return appErrors.NewInternalError(fmt.Sprintf("Failed to soft delete transaction with ID %d", id), result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return appErrors.NewNotFoundError(fmt.Sprintf("Transaction with ID %d not found or not owned by user", id), nil)
+	}
+	return nil
 }
 
 // CreateCategory adds a new category to the database
@@ -84,7 +119,7 @@ func (r *GormRepository) CreateCategory(ctx context.Context, c *models.Category)
 }
 
 // GetCategories retrieves all categories, preloading their parent category
-func (r *GormRepository) GetCategories(ctx context.Context, userID uint, limit, offset int) ([]models.Category, error) {
+func (r *GormRepository) GetCategories(ctx context.Context, userID uint, limit, offset int, name *string) ([]models.Category, error) {
 	var categories []models.Category
 	query := r.db.WithContext(ctx).Where("user_id = ?", userID).Preload("Parent")
 
@@ -95,11 +130,27 @@ func (r *GormRepository) GetCategories(ctx context.Context, userID uint, limit, 
 		query = query.Offset(offset)
 	}
 
+	if name != nil && *name != "" {
+		query = query.Where("name ILIKE ?", "%"+*name+"%")
+	}
+
 	err := query.Find(&categories).Error
 	if err != nil {
 		return nil, appErrors.NewInternalError("Failed to retrieve categories from database", err)
 	}
 	return categories, nil
+}
+
+// DeleteCategory soft deletes a category for a specific user.
+func (r *GormRepository) DeleteCategory(ctx context.Context, userID uint, id uint) error {
+	result := r.db.WithContext(ctx).Where("user_id = ?", userID).Delete(&models.Category{}, id)
+	if result.Error != nil {
+		return appErrors.NewInternalError(fmt.Sprintf("Failed to soft delete category with ID %d", id), result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return appErrors.NewNotFoundError(fmt.Sprintf("Category with ID %d not found or not owned by user", id), nil)
+	}
+	return nil
 }
 
 // CreateUser adds a new user to the database
@@ -127,4 +178,12 @@ func (r *GormRepository) GetUserByUsername(ctx context.Context, username string)
 		return nil, appErrors.NewInternalError(fmt.Sprintf("Failed to retrieve user '%s' due to database error", username), err)
 	}
 	return &user, nil
+}
+
+// Transaction executes a function within a database transaction.
+func (r *GormRepository) Transaction(txFunc func(txRepo Repository) error) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		txGormRepo := NewGormRepository(tx)
+		return txFunc(txGormRepo)
+	})
 }

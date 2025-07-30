@@ -4,13 +4,15 @@ import (
 	"context"
 	"personal-finance-tracker-api/internal/models"
 	"personal-finance-tracker-api/internal/repository"
+	"time"
 )
 
 // TransactionService defines the interface for transaction-related business logic
 type TransactionService interface {
 	CreateTransaction(ctx context.Context, transaction *models.Transaction) (*models.Transaction, error)
-	GetTransactions(ctx context.Context, userID uint, limit, offset int) ([]models.Transaction, error)
+	GetTransactions(ctx context.Context, userID uint, limit, offset int, startDate, endDate *time.Time, transactionType *models.TransactionType, description *string) ([]models.Transaction, error)
 	ExportTransactionsCSV(ctx context.Context, userID uint) ([]models.Transaction, error)
+	DeleteTransaction(ctx context.Context, userID uint, id uint) error
 }
 
 // transactionService implements the TransactionService interface
@@ -35,8 +37,8 @@ func (s *transactionService) CreateTransaction(ctx context.Context, transaction 
 }
 
 // GetTransactions retrieves a list of transactions, applying business rules if any
-func (s *transactionService) GetTransactions(ctx context.Context, userID uint, limit, offset int) ([]models.Transaction, error) {
-	transactions, err := s.repo.GetTransactions(ctx, userID, limit, offset)
+func (s *transactionService) GetTransactions(ctx context.Context, userID uint, limit, offset int, startDate, endDate *time.Time, transactionType *models.TransactionType, description *string) ([]models.Transaction, error) {
+	transactions, err := s.repo.GetTransactions(ctx, userID, limit, offset, startDate, endDate, transactionType, description)
 	if err != nil {
 		return nil, err
 	}
@@ -46,9 +48,14 @@ func (s *transactionService) GetTransactions(ctx context.Context, userID uint, l
 
 // ExportTransactionsCSV retrieves transactions for CSV export
 func (s *transactionService) ExportTransactionsCSV(ctx context.Context, userID uint) ([]models.Transaction, error) {
-	transactions, err := s.repo.GetTransactions(ctx, userID, 0, 0)
+	transactions, err := s.repo.GetTransactions(ctx, userID, 0, 0, nil, nil, nil, nil)
 	if err != nil {
 		return nil, err
 	}
 	return transactions, nil
+}
+
+// DeleteTransaction performs a soft delete of a transaction
+func (s *transactionService) DeleteTransaction(ctx context.Context, userID uint, id uint) error {
+	return s.repo.DeleteTransaction(ctx, userID, id)
 }

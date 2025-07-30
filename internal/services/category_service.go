@@ -9,7 +9,8 @@ import (
 // CategoryService defines the interface for category-related business logic
 type CategoryService interface {
 	CreateCategory(ctx context.Context, category *models.Category) (*models.Category, error)
-	GetCategories(ctx context.Context, userID uint, limit, offset int) ([]models.Category, error)
+	GetCategories(ctx context.Context, userID uint, limit, offset int, name *string) ([]models.Category, error)
+	DeleteCategory(ctx context.Context, userID uint, id uint) error
 }
 
 // categoryService implements the CategoryService interface
@@ -24,20 +25,32 @@ func NewCategoryService(repo repository.Repository) CategoryService {
 
 // CreateCategory handles the creation of a new category, applying business rules if any
 func (s *categoryService) CreateCategory(ctx context.Context, category *models.Category) (*models.Category, error) {
-	// Example: Here you could add business logic specific to category creation,
-	// e.g., default subcategories, checking name conventions, etc.
-	if err := s.repo.CreateCategory(ctx, category); err != nil {
+	// Execute the creation within a database transaction
+	err := s.repo.Transaction(func(txRepo repository.Repository) error {
+		// Use txRepo for operations within this transaction
+		if err := txRepo.CreateCategory(ctx, category); err != nil {
+			return err
+		}
+		return nil
+	})
+
+	if err != nil {
 		return nil, err
 	}
 	return category, nil
 }
 
 // GetCategories retrieves a list of categories, applying business rules if any
-func (s *categoryService) GetCategories(ctx context.Context, userID uint, limit, offset int) ([]models.Category, error) {
-	categories, err := s.repo.GetCategories(ctx, userID, limit, offset)
+func (s *categoryService) GetCategories(ctx context.Context, userID uint, limit, offset int, name *string) ([]models.Category, error) {
+	categories, err := s.repo.GetCategories(ctx, userID, limit, offset, name)
 	if err != nil {
 		return nil, err
 	}
 	// Example: Further processing or filtering of categories based on business rules
 	return categories, nil
+}
+
+// DeleteCategory performs a soft delete of a category
+func (s *categoryService) DeleteCategory(ctx context.Context, userID uint, id uint) error {
+	return s.repo.DeleteCategory(ctx, userID, id)
 }
