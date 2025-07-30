@@ -10,6 +10,7 @@ import (
 type CategoryService interface {
 	CreateCategory(ctx context.Context, category *models.Category) (*models.Category, error)
 	GetCategories(ctx context.Context, userID uint, limit, offset int, name *string) ([]models.Category, error)
+	DeleteCategory(ctx context.Context, userID uint, id uint) error
 }
 
 // categoryService implements the CategoryService interface
@@ -47,4 +48,9 @@ func (s *categoryService) GetCategories(ctx context.Context, userID uint, limit,
 	}
 	// Example: Further processing or filtering of categories based on business rules
 	return categories, nil
+}
+
+// DeleteCategory performs a soft delete of a category
+func (s *categoryService) DeleteCategory(ctx context.Context, userID uint, id uint) error {
+	return s.repo.DeleteCategory(ctx, userID, id)
 }

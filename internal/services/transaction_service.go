@@ -12,6 +12,7 @@ type TransactionService interface {
 	CreateTransaction(ctx context.Context, transaction *models.Transaction) (*models.Transaction, error)
 	GetTransactions(ctx context.Context, userID uint, limit, offset int, startDate, endDate *time.Time, transactionType *models.TransactionType, description *string) ([]models.Transaction, error)
 	ExportTransactionsCSV(ctx context.Context, userID uint) ([]models.Transaction, error)
+	DeleteTransaction(ctx context.Context, userID uint, id uint) error
 }
 
 // transactionService implements the TransactionService interface
@@ -52,4 +53,9 @@ func (s *transactionService) ExportTransactionsCSV(ctx context.Context, userID u
 		return nil, err
 	}
 	return transactions, nil
+}
+
+// DeleteTransaction performs a soft delete of a transaction
+func (s *transactionService) DeleteTransaction(ctx context.Context, userID uint, id uint) error {
+	return s.repo.DeleteTransaction(ctx, userID, id)
 }
