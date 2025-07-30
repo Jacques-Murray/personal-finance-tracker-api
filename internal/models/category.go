@@ -1,15 +1,13 @@
 package models
 
-import "time"
+import "gorm.io/gorm"
 
 // Category represents a classification for a transaction
 type Category struct {
-	ID        uint      `gorm:"primaryKey" json:"id"`
-	Name      string    `gorm:"size:100;not null;unique" json:"name" validate:"required,min=2,max=100"`
-	ParentID  *uint     `json:"parentId,omitempty"`
-	Parent    *Category `gorm:"foreignKey:ParentID" json:"parent,omitempty"`
-	UserID    uint      `json:"userId"`
-	User      User      `gorm:"foreignKey:UserID" json:"user"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	gorm.Model
+	Name     string    `gorm:"size:100;not null;unique" json:"name" validate:"required,min=2,max=100"`
+	ParentID *uint     `json:"parentId,omitempty"`
+	Parent   *Category `gorm:"foreignKey:ParentID" json:"parent,omitempty"`
+	UserID   uint      `json:"userId"`
+	User     User      `gorm:"foreignKey:UserID" json:"user"`
 }
