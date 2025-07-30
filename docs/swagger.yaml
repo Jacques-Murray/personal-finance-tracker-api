@@ -30,58 +30,9 @@ definitions:
     - username
     type: object
   models.Category:
-    properties:
-      createdAt:
-        type: string
-      id:
-        type: integer
-      name:
-        type: string
-      parent:
-        $ref: '#/definitions/models.Category'
-      parentId:
-        type: integer
-      updatedAt:
-        type: string
     type: object
   models.Transaction:
-    properties:
-      amount:
-        type: number
-      category:
-        $ref: '#/definitions/models.Category'
-      categoryId:
-        type: integer
-      createdAt:
-        type: string
-      date:
-        type: string
-      description:
-        type: string
-      id:
-        type: integer
-      type:
-        allOf:
-        - $ref: '#/definitions/models.TransactionType'
-        enum:
-        - income
-        - expense
-      updatedAt:
-        type: string
-    required:
-    - amount
-    - categoryId
-    - date
-    - type
     type: object
-  models.TransactionType:
-    enum:
-    - income
-    - expense
-    type: string
-    x-enum-varnames:
-    - Income
-    - Expense
   models.User:
     properties:
       createdAt:
@@ -138,7 +89,23 @@ info:
 paths:
   /categories:
     get:
-      description: Retrieve a list of all transaction categories
+      description: Retrieve a list of all transaction categories with optional pagination,
+        filtered by authenticated user
+      parameters:
+      - default: 100
+        description: Maximum number of categories to retrieve
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Number of categories to skip
+        in: query
+        name: offset
+        type: integer
+      - description: Search categories by name (case-insensitive)
+        in: query
+        name: name
+        type: string
       produces:
       - application/json
       responses:
@@ -148,6 +115,14 @@ paths:
             items:
               $ref: '#/definitions/models.Category'
             type: array
+        "400":
+          description: Invalid query parameters
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "401":
+          description: Unauthorized (missing or invalid token)
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
         "500":
           description: Internal server error
           schema:
@@ -158,7 +133,8 @@ paths:
     post:
       consumes:
       - application/json
-      description: Add a new category to the system
+      description: Add a new category to the system, associated with the authenticated
+        user
       parameters:
       - description: Category object
         in: body
@@ -174,11 +150,16 @@ paths:
           schema:
             $ref: '#/definitions/models.Category'
         "400":
-          description: Invalid input
+          description: Invalid input or validation error
+          schema:
+            $ref: '#/definitions/responses.ValidationErrorResponse'
+        "401":
+          description: Unauthorized (missing or invalid token)
           schema:
             $ref: '#/definitions/responses.ErrorResponse'
         "409":
-          description: Conflict error (e.g., category name already exists)
+          description: Conflict error (e.g., category name already exists for this
+            user)
           schema:
             $ref: '#/definitions/responses.ErrorResponse'
         "500":
@@ -191,6 +172,35 @@ paths:
   /transactions:
     get:
       description: Retrieve a list of all transactions, ordered by date
+      parameters:
+      - default: 100
+        description: Maximum number of transaction to retrieve
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Number of transactions to skip
+        in: query
+        name: offset
+        type: integer
+      - description: Filter transactions from this date (YYYY-MM-DD)
+        format: date
+        in: query
+        name: startDate
+        type: string
+      - description: Filter transactions up to this date (YYYY-MM-DD)
+        format: date
+        in: query
+        name: endDate
+        type: string
+      - description: Filter by transaction type (income, expense)
+        in: query
+        name: type
+        type: string
+      - description: Search transactions by description (case-insensitive)
+        in: query
+        name: description
+        type: string
       produces:
       - application/json
       responses:
@@ -200,6 +210,14 @@ paths:
             items:
               $ref: '#/definitions/models.Transaction'
             type: array
+        "400":
+          description: Invalid query parameters
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "401":
+          description: Unauthorized (missing or invalid token)
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
         "500":
           description: Internal server error
           schema:
