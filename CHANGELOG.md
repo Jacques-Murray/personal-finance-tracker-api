@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.12](https://github.com/Jacques-Murray/personal-finance-tracker-api/tree/1.0.12) (2025-11-16)
+
+[Full Changelog](https://github.com/Jacques-Murray/personal-finance-tracker-api/compare/1.0.11...1.0.12)
+
 ## [1.0.11](https://github.com/Jacques-Murray/personal-finance-tracker-api/tree/1.0.11) (2025-07-30)
 
 [Full Changelog](https://github.com/Jacques-Murray/personal-finance-tracker-api/compare/1.0.10...1.0.11)
